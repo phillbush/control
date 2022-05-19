@@ -1,4 +1,4 @@
-include demo/primitive/include.mk
+include demos/primitive/include.mk
 
 DEMO_BINS = ${DEMO_PRIMITIVE_BINS}
 DEMO_OBJS = ${DEMO_PRIMITIVE_OBJS}

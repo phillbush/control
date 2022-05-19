@@ -8,6 +8,7 @@
 static void ClassInitialize(void);
 static void ClassPartInitialize(WidgetClass);
 static void Initialize(Widget, Widget, ArgList, Cardinal *);
+static void Resize(Widget);
 static void Realize(Widget, XtValueMask *, XSetWindowAttributes *);
 static void Destroy(Widget);
 static void Redisplay(Widget, XEvent *, Region);
@@ -21,6 +22,9 @@ static void Unpress(Widget);
 static void TooltipPost(Widget);
 static void TooltipUnpost(Widget);
 static void Activate(Widget, XEvent *, String *, Cardinal *);
+
+/* helper functions */
+static void Draw(Widget);
 
 static XtActionsRec actions[] = {
 #warning TODO: Fill in Primitive actions[] after implement widget traversal;
@@ -50,7 +54,7 @@ static XtResource resources[] = {
 		.resource_class  = CtrlCShadowLightColor,
 		.resource_type   = CtrlRPixel,
 		.resource_size   = sizeof(Pixel),
-		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.shadow_light_color),
+		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.shadow_light_pixel),
 		.default_type    = CtrlRString,
 		.default_addr    = (XtPointer)DEF_SHADOW_LIGHT_COLOR,
 	},
@@ -68,7 +72,7 @@ static XtResource resources[] = {
 		.resource_class  = CtrlCShadowDarkColor,
 		.resource_type   = CtrlRPixel,
 		.resource_size   = sizeof(Pixel),
-		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.shadow_dark_color),
+		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.shadow_dark_pixel),
 		.default_type    = CtrlRString,
 		.default_addr    = (XtPointer)DEF_SHADOW_DARK_COLOR,
 	},
@@ -95,7 +99,7 @@ static XtResource resources[] = {
 		.resource_class  = CtrlCHighlightColor,
 		.resource_type   = CtrlRPixel,
 		.resource_size   = sizeof(Pixel),
-		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.highlight_color),
+		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.highlight_pixel),
 		.default_type    = CtrlRString,
 		.default_addr    = (XtPointer)DEF_HIGHLIGHT_COLOR,
 	},
@@ -166,7 +170,7 @@ CtrlPrimitiveClassRec ctrlPrimitiveClassRec = {
 		.compress_enterleave    = TRUE,
 		.visible_interest       = FALSE,
 		.destroy                = Destroy,
-		.resize                 = NULL,
+		.resize                 = Resize,
 		.expose                 = Redisplay,
 		.set_values             = SetValues,
 		.set_values_almost      = XtInheritSetValuesAlmost,
@@ -233,8 +237,9 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 
 	/* initialize the widget to its blank state */
 	new->primitive.have_traversal = FALSE;
-	new->primitive.is_pushed = FALSE;
-	new->primitive.is_highlighted = FALSE;
+	new->primitive.pressed = FALSE;
+	new->primitive.highlighted = FALSE;
+	new->primitive.pixsave = None;
 
 	/* check geometry; we should not create 0-sized widgets */
 	if (request->core.width == 0)
@@ -242,8 +247,35 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	if (request->core.height == 0)
 		new->core.height += new->primitive.highlight_thickness * 2 + new->primitive.shadow_thickness * 2;
 
+	/* alloc tooltip string */
 	if (new->primitive.tooltip != NULL)
 		new->primitive.tooltip = XtNewString(new->primitive.tooltip);
+}
+
+static void
+Resize(Widget w)
+{
+	CtrlPrimitiveWidget widget;
+
+	widget = (CtrlPrimitiveWidget)w;
+	NewPixmap(
+		XtDisplay(w),
+		&widget->primitive.pixsave,
+		XtWindow(w),
+		widget->core.width,
+		widget->core.height,
+		widget->core.depth
+	);
+	Draw(w);
+	CommitPixmap(
+		XtDisplay(w),
+		XtWindow(w),
+		widget->primitive.pixsave,
+		widget->core.x,
+		widget->core.y,
+		widget->core.width,
+		widget->core.height
+	);
 }
 
 static void 
@@ -254,6 +286,7 @@ Realize(Widget w, XtValueMask *valuemask, XSetWindowAttributes *attrs)
 	if ((attrs->cursor = ((CtrlPrimitiveWidget)w)->primitive.cursor) != None)
 		*valuemask |= CWCursor;
 	XtCreateWindow(w, InputOutput, CopyFromParent, *valuemask, attrs);
+	Resize(w);
 }
 
 static void
@@ -276,14 +309,15 @@ Redisplay(Widget w, XEvent *ev, Region r)
 	(void)ev;
 	(void)r;
 	widget = (CtrlPrimitiveWidget)w;
-	if (widget->primitive.is_highlighted)
-		(*(((CtrlPrimitiveWidgetClass)XtClass(w))->primitive_class.highlight))(w);
-	else
-		(*(((CtrlPrimitiveWidgetClass)XtClass(w))->primitive_class.unhighlight))(w);
-	if (widget->primitive.is_pushed)
-		(*(((CtrlPrimitiveWidgetClass)XtClass(w))->primitive_class.press))(w);
-	else
-		(*(((CtrlPrimitiveWidgetClass)XtClass(w))->primitive_class.unpress))(w);
+	CommitPixmap(
+		XtDisplay(w),
+		XtWindow(w),
+		widget->primitive.pixsave,
+		widget->core.x,
+		widget->core.y,
+		widget->core.width,
+		widget->core.height
+	);
 }
 
 static Boolean
@@ -320,41 +354,192 @@ SetValues(Widget cw, Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	}
 #warning TODO: update keyboard traversals
 	return old->primitive.shadow_thickness != new->primitive.shadow_thickness ||
-	       old->primitive.shadow_light_color != new->primitive.shadow_light_color ||
+	       old->primitive.shadow_light_pixel != new->primitive.shadow_light_pixel ||
 	       old->primitive.shadow_light_pixmap != new->primitive.shadow_light_pixmap ||
-	       old->primitive.shadow_dark_color != new->primitive.shadow_dark_color ||
+	       old->primitive.shadow_dark_pixel != new->primitive.shadow_dark_pixel ||
 	       old->primitive.shadow_dark_pixmap != new->primitive.shadow_dark_pixmap ||
 	       old->primitive.highlight_thickness != new->primitive.highlight_thickness ||
-	       old->primitive.highlight_color != new->primitive.highlight_color ||
+	       old->primitive.highlight_pixel != new->primitive.highlight_pixel ||
 	       old->primitive.highlight_pixmap != new->primitive.highlight_pixmap;
+}
+
+static void
+Draw(Widget w)
+{
+	CtrlPrimitiveWidget widget;
+
+	widget = (CtrlPrimitiveWidget)w;
+	DrawRectangle(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		widget->core.background_pixmap,
+		widget->core.background_pixel,
+		0, 0,
+		widget->core.width,
+		widget->core.height
+	);
+	DrawHighlight(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		(widget->primitive.highlighted)
+		? widget->primitive.highlight_pixmap
+		: widget->core.background_pixmap,
+		(widget->primitive.highlighted)
+		? widget->primitive.highlight_pixel
+		: widget->core.background_pixel,
+		0, 0,
+		widget->core.width,
+		widget->core.height,
+		widget->primitive.highlight_thickness
+	);
+	DrawTopShadow(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		(widget->primitive.pressed)
+		? widget->primitive.shadow_dark_pixmap
+		: widget->primitive.shadow_light_pixmap,
+		(widget->primitive.pressed)
+		? widget->primitive.shadow_dark_pixel
+		: widget->primitive.shadow_light_pixel,
+		0, 0,
+		widget->core.width,
+		widget->core.height,
+		widget->primitive.shadow_thickness,
+		widget->primitive.highlight_thickness
+	);
+	DrawBottomShadow(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		(widget->primitive.pressed)
+		? widget->primitive.shadow_light_pixmap
+		: widget->primitive.shadow_dark_pixmap,
+		(widget->primitive.pressed)
+		? widget->primitive.shadow_light_pixel
+		: widget->primitive.shadow_dark_pixel,
+		0, 0,
+		widget->core.width,
+		widget->core.height,
+		widget->primitive.shadow_thickness,
+		widget->primitive.highlight_thickness
+	);
 }
 
 static void
 Highlight(Widget w)
 {
-#warning TODO: implement primitive_class.highlight
-	(void)w;
+	CtrlPrimitiveWidget widget;
+
+	widget = (CtrlPrimitiveWidget)w;
+	widget->primitive.highlighted = TRUE;
+	DrawHighlight(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		widget->primitive.highlight_pixmap,
+		widget->primitive.highlight_pixel,
+		0, 0,
+		widget->core.width,
+		widget->core.height,
+		widget->primitive.highlight_thickness
+	);
+	CommitPixmap(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		widget->primitive.pixsave,
+		widget->core.x,
+		widget->core.y,
+		widget->core.width,
+		widget->core.height
+	);
 }
 
 static void
 Unhighlight(Widget w)
 {
-#warning TODO: implement primitive_class.unhighlight
-	(void)w;
+	CtrlPrimitiveWidget widget;
+
+	widget = (CtrlPrimitiveWidget)w;
+	widget->primitive.highlighted = FALSE;
+	DrawHighlight(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		widget->core.background_pixmap,
+		widget->core.background_pixel,
+		0, 0,
+		widget->core.width,
+		widget->core.height,
+		widget->primitive.highlight_thickness
+	);
+	CommitPixmap(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		widget->primitive.pixsave,
+		widget->core.x,
+		widget->core.y,
+		widget->core.width,
+		widget->core.height
+	);
 }
 
 static void
 Press(Widget w)
 {
-#warning TODO: implement primitive_class.press
-	(void)w;
+	CtrlPrimitiveWidget widget;
+
+	widget = (CtrlPrimitiveWidget)w;
+	widget->primitive.pressed = TRUE;
+	DrawTopShadow(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		widget->primitive.shadow_dark_pixmap,
+		widget->primitive.shadow_dark_pixel,
+		0, 0,
+		widget->core.width,
+		widget->core.height,
+		widget->primitive.shadow_thickness,
+		widget->primitive.highlight_thickness
+	);
+	DrawBottomShadow(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		widget->primitive.shadow_light_pixmap,
+		widget->primitive.shadow_light_pixel,
+		0, 0,
+		widget->core.width,
+		widget->core.height,
+		widget->primitive.shadow_thickness,
+		widget->primitive.highlight_thickness
+	);
 }
 
 static void
 Unpress(Widget w)
 {
-#warning TODO: implement primitive_class.unpress
-	(void)w;
+	CtrlPrimitiveWidget widget;
+
+	widget = (CtrlPrimitiveWidget)w;
+	widget->primitive.pressed = FALSE;
+	DrawTopShadow(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		widget->primitive.shadow_light_pixmap,
+		widget->primitive.shadow_light_pixel,
+		0, 0,
+		widget->core.width,
+		widget->core.height,
+		widget->primitive.shadow_thickness,
+		widget->primitive.highlight_thickness
+	);
+	DrawBottomShadow(
+		XtDisplay(w),
+		widget->primitive.pixsave,
+		widget->primitive.shadow_dark_pixmap,
+		widget->primitive.shadow_dark_pixel,
+		0, 0,
+		widget->core.width,
+		widget->core.height,
+		widget->primitive.shadow_thickness,
+		widget->primitive.highlight_thickness
+	);
 }
 
 static void

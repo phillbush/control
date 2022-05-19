@@ -22,8 +22,8 @@ main(int argc, char *argv[])
 		"primitive",
 		ctrlPrimitiveWidgetClass,
 		shell,
-		XtNwidth, 10,
-		XtNheight, 10,
+		CtrlNwidth, 100,
+		CtrlNheight, 100,
 		NULL
 	);
 	XtRealizeWidget(shell);
