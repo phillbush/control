@@ -9,6 +9,7 @@ InitializeConverters(void)
 
 	if (initialized)
 		return;
+	initialized = TRUE;
 #warning TODO: initialize converters
 }
 

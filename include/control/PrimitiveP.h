@@ -6,8 +6,6 @@
 #include <X11/CoreP.h>
 
 typedef struct {
-	XtWidgetProc            draw_all;
-	XtWidgetProc            draw_background;
 	XtWidgetProc            highlight;
 	XtWidgetProc            unhighlight;
 	XtWidgetProc            press;
@@ -29,12 +27,14 @@ typedef struct {
 	/* resource fields */
 	Pixel                   foreground;
 
+	Boolean                 pressable;
 	Dimension               shadow_thickness;
 	Pixel                   shadow_light_pixel;
 	Pixmap                  shadow_light_pixmap;
 	Pixel                   shadow_dark_pixel;
 	Pixmap                  shadow_dark_pixmap;
 
+	Boolean                 focusable;
 	Dimension               highlight_thickness;
 	Pixel                   highlight_pixel;
 	Pixmap                  highlight_pixmap;
@@ -50,7 +50,7 @@ typedef struct {
 	Boolean                 highlighted;    /* whether the highlight border is drawn around the widget */
 	Boolean                 pressed;        /* whether the shadow borders are inverted */
 	Boolean                 have_traversal; /* whether the widget has the traversal focus */
-	Pixmap                  pixsave;
+	Pixmap                  pixsave;        /* pixmap where to draw widget content to */
 } CtrlPrimitivePart;
 
 typedef struct _CtrlPrimitiveRec {

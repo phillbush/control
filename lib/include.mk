@@ -6,8 +6,9 @@ LIB_SRCS = lib/Primitive.c \
            lib/ControlI.c \
            lib/ControlI.h
 
-lib/Primitive.o:        include/control/PrimitiveP.h include/control/Primitive.h
 ${LIB_OBJS}:            lib/ControlI.h
+
+lib/Primitive.o:        include/control/PrimitiveP.h include/control/Primitive.h
 
 lib/libcontrol.a: ${LIB_OBJS}
 	${AR} rc $@ ${LIB_OBJS}

@@ -111,6 +111,8 @@
 #define CtrlNhighlightPixmap            "highlightPixmap"
 #define CtrlNisTabGroup                 "isTabGroup"
 #define CtrlNtraverseable               "traverseable"
+#define CtrlNpressable                  "pressable"
+#define CtrlNfocusable                  "focusable"
 
 /* resource class definitions */
 #define CtrlCAccelerators               XtCAccelerators
@@ -191,6 +193,8 @@
 #define CtrlCHighlightPixmap            "HighlightPixmap"
 #define CtrlCIsTabGroup                 "IsTabGroup"
 #define CtrlCTraverseable               "Traverseable"
+#define CtrlCPressable                  "Pressable"
+#define CtrlCFocusable                  "Focusable"
 
 /* resource representation type definitions */
 #define CtrlRAcceleratorTable           XtRAcceleratorTable

@@ -1,7 +1,8 @@
-include demos/primitive/include.mk
+DEMOS = demos/primitive
+DEMO_OBJS = demos/primitive.o
+DEMO_SRCS = demos/primitive.c
 
-DEMO_BINS = ${DEMO_PRIMITIVE_BINS}
-DEMO_OBJS = ${DEMO_PRIMITIVE_OBJS}
-DEMO_SRCS = ${DEMO_PRIMITIVE_SRCS}
+${DEMO_OBJS}: ${LIB_OBJS} ${HEADERS}
 
-${DEMO_OBJS}: lib/libcontrol.so lib/libcontrol.a
+demos/primitive: demos/primitive.o
+	${CC} -L/usr/X11R6/lib -L/usr/local/lib -o $@ demos/primitive.o ${LIB_OBJS} -lXt -lX11 ${LDFLAGS}

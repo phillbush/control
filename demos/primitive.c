@@ -1,6 +1,10 @@
 #include <X11/Shell.h>
-
 #include <control/Primitive.h>
+
+static String fallbackresources[] = {
+	"*CtrlPrimitive.cursor:             pirate",
+	NULL
+};
 
 int
 main(int argc, char *argv[])
@@ -14,7 +18,7 @@ main(int argc, char *argv[])
 		"Demo",
 		NULL, 0,
 		&argc, argv,
-		NULL,
+		fallbackresources,
 		sessionShellWidgetClass,
 		NULL, 0
 	);
@@ -22,8 +26,10 @@ main(int argc, char *argv[])
 		"primitive",
 		ctrlPrimitiveWidgetClass,
 		shell,
-		CtrlNwidth, 100,
-		CtrlNheight, 100,
+		CtrlNfocusable, TRUE,
+		CtrlNpressable, TRUE,
+		CtrlNwidth,     100,
+		CtrlNheight,    100,
 		NULL
 	);
 	XtRealizeWidget(shell);
