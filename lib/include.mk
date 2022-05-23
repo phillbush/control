@@ -2,7 +2,7 @@ LIBS = lib/libcontrol.a lib/libcontrol.so
 
 LIB_OBJS = lib/ControlI.o \
            lib/Primitive.o \
-#          lib/TextField.o
+           lib/TextField.o
 
 LIB_SRCS = ${LIB_OBJS:.o=.c} lib/ControlI.h
 

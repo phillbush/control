@@ -6,10 +6,11 @@
 static void Realize(Widget, XtValueMask *, XSetWindowAttributes *);
 
 /* help methods */
-static void preeditstart(XIM, XPointer, XPointer);
-static void preeditdone(XIM, XPointer, XPointer);
-static void preeditdraw(XIM, XPointer, XPointer);
-static void preeditcaret(XIM, XPointer, XPointer);
+static int PreeditStart(XIC, XPointer, XPointer);
+static int PreeditDone(XIC, XPointer, XPointer);
+static int PreeditDraw(XIC, XPointer, XPointer);
+static int PreeditCaret(XIC, XPointer, XPointer);
+static int PreeditDestroy(XIC, XPointer, XPointer);
 
 CtrlTextFieldClassRec ctrlTextFieldClassRec = {
 	.core_class = {
@@ -30,26 +31,66 @@ WidgetClass ctrlTextFieldWidgetClass = (WidgetClass)&ctrlTextFieldClassRec;
 static void 
 Realize(Widget w, XtValueMask *valuemask, XSetWindowAttributes *attrs)
 {
-	(*ctrlTextFieldClassRec.core_class.superclass->core_class.realize)(w, valuemask, attrs);
-	_CtrlInitializeInput(w);
-	XmImSetValues(
-		w,
-		CtrlNpreeditStartCallback, &(XIMCallback) {
-			.client_data = (XPointer)w,
-			.callback = (XIMProc)preeditstart,
-		},
-		CtrlNpreeditDoneCallback, &(XIMCallback) {
-			.client_data = (XPointer)w,
-			.callback = (XIMProc)preeditdone,
-		},
-		CtrlNpreeditDrawCallback, &(XIMCallback) {
-			.client_data = (XPointer)w,
-			.callback = (XIMProc)preeditdraw,
-		},
-		CtrlNpreeditCaretCallback, &(XIMCallback) {
-			.client_data = (XPointer)w,
-			.callback = (XIMProc)preeditcaret,
-		},
-		NULL
+	XtRealizeProc realize;
+
+	realize = ctrlTextFieldWidgetClass->core_class.superclass->core_class.realize;
+	(*realize)(w, valuemask, attrs);
+	(void)_CtrlGetInputContext(
+		XtDisplay(w), w,
+		PreeditStart,
+		PreeditDone,
+		PreeditDraw,
+		PreeditCaret,
+		PreeditDestroy
 	);
+}
+
+static int
+PreeditStart(XIC xic, XPointer client_data, XPointer call_data)
+{
+	(void)xic;
+	(void)client_data;
+	(void)call_data;
+	return -1;
+#warning TODO: write preedit callback functions
+}
+
+static int
+PreeditDone(XIC xic, XPointer client_data, XPointer call_data)
+{
+	(void)xic;
+	(void)client_data;
+	(void)call_data;
+	return -1;
+#warning TODO: write preedit callback functions
+}
+
+static int
+PreeditDraw(XIC xic, XPointer client_data, XPointer call_data)
+{
+	(void)xic;
+	(void)client_data;
+	(void)call_data;
+	return -1;
+#warning TODO: write preedit callback functions
+}
+
+static int
+PreeditCaret(XIC xic, XPointer client_data, XPointer call_data)
+{
+	(void)xic;
+	(void)client_data;
+	(void)call_data;
+	return -1;
+#warning TODO: write preedit callback functions
+}
+
+static int
+PreeditDestroy(XIC xic, XPointer client_data, XPointer call_data)
+{
+	(void)xic;
+	(void)client_data;
+	(void)call_data;
+	return -1;
+#warning TODO: write preedit callback functions
 }
