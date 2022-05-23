@@ -12,7 +12,7 @@ typedef struct {
 
 typedef struct _CtrlTextFieldClassRec {
 	CoreClassPart           core_class;
-	CtrlPrimitiveClassPart  primitive_class
+	CtrlPrimitiveClassPart  primitive_class;
 	CtrlTextFieldClassPart  text_class;
 } CtrlTextFieldClassRec;
 

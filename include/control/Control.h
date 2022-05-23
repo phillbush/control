@@ -113,6 +113,10 @@
 #define CtrlNtraverseable               "traverseable"
 #define CtrlNpressable                  "pressable"
 #define CtrlNfocusable                  "focusable"
+#define CtrlNpreeditStartCallback       "preeditStartCallback"
+#define CtrlNpreeditDoneCallback        "preeditDoneCallback"
+#define CtrlNpreeditDrawCallback        "preeditDrawCallback"
+#define CtrlNpreeditCaretCallback       "preeditCaretCallback"
 
 /* resource class definitions */
 #define CtrlCAccelerators               XtCAccelerators
