@@ -50,6 +50,7 @@ CvtStringToXftFont(Display *dpy, XrmValue *args, Cardinal *nargs, XrmValue *from
 	_CtrlFont font;
 	String fontName;
 	XtAppContext app;
+	XtPointer p;
 
 	(void)args;
 	(void)nargs;
@@ -69,7 +70,8 @@ CvtStringToXftFont(Display *dpy, XrmValue *args, Cardinal *nargs, XrmValue *from
 		}
 	}
 	XtAppUnlock(app);
-	CONVERTER_DONE(to, _CtrlFont, font)
+	p = (XtPointer)font;
+	CONVERTER_DONE(to, XtPointer, p)
 	return TRUE;
 error:
 	XtAppUnlock(app);
