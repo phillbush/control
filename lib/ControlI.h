@@ -3,6 +3,9 @@
 
 /* resource default values */
 #define DEF_THICKNESS           2
+#define DEF_TEXT_MARGIN         5
+#define DEF_BLINK_RATE          500
+#define DEF_SELECT_THRESHOLD    5
 #define DEF_FOREGROUND          "#FFFFFF"
 #define DEF_SHADOW_LIGHT_COLOR  "#737373"
 #define DEF_SHADOW_DARK_COLOR   "#101010"

@@ -117,6 +117,22 @@
 #define CtrlNpreeditDoneCallback        "preeditDoneCallback"
 #define CtrlNpreeditDrawCallback        "preeditDrawCallback"
 #define CtrlNpreeditCaretCallback       "preeditCaretCallback"
+#define CtrlNactivateCallback           "activateCallback"
+#define CtrlNdestinationCallback        "destinationCallback"
+#define CtrlNfocusCallback              "focusCallback"
+#define CtrlNlosingFocusCallback        "losingFocusCallback"
+#define CtrlNgainPrimaryCallback        "gainPrimaryCallback"
+#define CtrlNlosePrimaryCallback        "losePrimaryCallback"
+#define CtrlNgainClipboardCallback      "gainClipboardCallback"
+#define CtrlNloseClipboardCallback      "loseClipboardCallback"
+#define CtrlNmodifyVerifyCallback       "modifyVerifyCallback"
+#define CtrlNmotionVerifyCallback       "motionVerifyCallback"
+#define CtrlNvalueChangedCallback       "valueChangedCallback"
+#define CtrlNmarginHeight               "marginHeight"
+#define CtrlNmarginWidth                "marginWidth"
+#define CtrlNcursorPosition             "cursorPosition"
+#define CtrlNblinkRate                  "blinkRate"
+#define CtrlNselectThreshold            "selectThreshold"
 
 /* resource class definitions */
 #define CtrlCAccelerators               XtCAccelerators
@@ -199,6 +215,11 @@
 #define CtrlCTraverseable               "Traverseable"
 #define CtrlCPressable                  "Pressable"
 #define CtrlCFocusable                  "Focusable"
+#define CtrlCMarginWidth                "MarginWidth"
+#define CtrlCMarginHeight               "MarginHeight"
+#define CtrlCCursorPosition             "CursorPosition"
+#define CtrlCBlinkRate                  "BlinkRate"
+#define CtrlCSelectThreshold            "SelectThreshold"
 
 /* resource representation type definitions */
 #define CtrlRAcceleratorTable           XtRAcceleratorTable
@@ -252,6 +273,8 @@
 #define CtrlRWidgetClass                XtRWidgetClass
 #define CtrlRWidgetList                 XtRWidgetList
 #define CtrlRWindow                     XtRWindow
+#define CtrlRTextPosition               XtCTextPosition
+#define CtrlRTime                       "Time"
 
 /* resource enum definitions */
 #define CtrlEfalse                      XtEfalse

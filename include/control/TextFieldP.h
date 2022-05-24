@@ -44,7 +44,7 @@ typedef struct {
 	XftColor               *selected_color;
 	Time                    last_time;              /* time of last selection event */
 	Time                    blink_rate;             /* rate of blinking text cursor in msec */
-	Dimension               threshold;              /* selection threshold */
+	Dimension               select_threshold;
 	Dimension               margin_width;
 	Dimension               margin_height;
 	Dimension               font_height;
