@@ -275,6 +275,7 @@
 #define CtrlRWindow                     XtRWindow
 #define CtrlRTextPosition               XtCTextPosition
 #define CtrlRTime                       "Time"
+#define CtrlRXftFont                    "XftFont"
 
 /* resource enum definitions */
 #define CtrlEfalse                      XtEfalse

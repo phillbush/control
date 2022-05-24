@@ -1,11 +1,16 @@
+#include <stdio.h>
+#include <string.h>
+
 #include <control/TextFieldP.h>
 
 #include "ControlI.h"
 
 /* core methods */
+static void Initialize(Widget, Widget, ArgList, Cardinal *);
 static void Realize(Widget, XtValueMask *, XSetWindowAttributes *);
+static void Destroy(Widget);
 
-/* help methods */
+/* preedit callback functions */
 static int PreeditStart(XIC, XPointer, XPointer);
 static int PreeditDone(XIC, XPointer, XPointer);
 static int PreeditDraw(XIC, XPointer, XPointer);
@@ -17,6 +22,15 @@ static XtActionsRec actions[] = {
 };
 
 static XtResource resources[] = {
+	{
+		.resource_name   = CtrlNfont,
+		.resource_class  = CtrlCFont,
+		.resource_type   = CtrlRXftFont,
+		.resource_size   = sizeof(XtPointer),
+		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.font),
+		.default_type    = CtrlRString,
+		.default_addr    = (XtPointer)DEF_FONT,
+	},
 	{
 		.resource_name   = CtrlNactivateCallback,
 		.resource_class  = CtrlCCallback,
@@ -144,15 +158,6 @@ static XtResource resources[] = {
 		.default_addr    = (XtPointer)DEF_TEXT_MARGIN,
 	},
 	{
-		.resource_name   = CtrlNcursorPosition,
-		.resource_class  = CtrlCCursorPosition,
-		.resource_type   = CtrlRTextPosition,
-		.resource_size   = sizeof(Cardinal),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.cursor_position),
-		.default_type    = CtrlRImmediate,
-		.default_addr    = (XtPointer)0,
-	},
-	{
 		.resource_name   = CtrlNblinkRate,
 		.resource_class  = CtrlCBlinkRate,
 		.resource_type   = CtrlRTime,
@@ -189,6 +194,7 @@ CtrlTextFieldClassRec ctrlTextFieldClassRec = {
 		.class_initialize       = NULL,
 		.class_part_initialize  = NULL,
 		.class_inited           = FALSE,
+		.initialize             = Initialize,
 		.realize                = Realize,
 		.actions                = actions,
 		.num_actions            = XtNumber(actions),
@@ -199,6 +205,30 @@ CtrlTextFieldClassRec ctrlTextFieldClassRec = {
 		.compress_exposure      = XtExposeCompressMaximal | XtExposeNoRegion,
 		.compress_enterleave    = TRUE,
 		.visible_interest       = FALSE,
+		.destroy                = Destroy,
+
+		.set_values_almost      = XtInheritSetValuesAlmost,
+		.get_values_hook        = NULL,
+		.accept_focus           = NULL,
+		.version                = XtVersion,
+		.callback_private       = NULL,
+		.tm_table               = NULL,
+		.display_accelerator    = NULL,
+		.extension              = NULL,
+
+		/* obsolete */
+		.initialize_hook        = NULL,
+		.set_values_hook        = NULL,
+	},
+	.primitive_class = {
+		.highlight              = (XtWidgetProc)_XtInherit,
+		.unhighlight            = (XtWidgetProc)_XtInherit,
+		.press                  = (XtWidgetProc)_XtInherit,
+		.unpress                = (XtWidgetProc)_XtInherit,
+		.tooltip_post           = (XtWidgetProc)_XtInherit,
+		.tooltip_unpost         = (XtWidgetProc)_XtInherit,
+		.activate               = NULL,
+		.translations           = NULL,
 	},
 	.text_class = {
 	},
@@ -206,11 +236,49 @@ CtrlTextFieldClassRec ctrlTextFieldClassRec = {
 
 WidgetClass ctrlTextFieldWidgetClass = (WidgetClass)&ctrlTextFieldClassRec;
 
+static void
+Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
+{
+	CtrlTextFieldWidget reqtf, newtf;
+	Dimension width, height;
+	XtAppContext app;
+	String origvalue;
+
+	(void)args;
+	(void)nargs;
+	app = XtWidgetToApplicationContext(nw);
+	reqtf = (CtrlTextFieldWidget)rw;;
+	newtf = (CtrlTextFieldWidget)nw;;
+	origvalue = newtf->text.value;
+	newtf->text.blink_on = TRUE;
+	newtf->text.has_focus = FALSE;
+	newtf->text.overstrike = FALSE;
+	newtf->text.under_preedit = FALSE;
+	newtf->text.selection_move = FALSE;
+	newtf->text.has_primary_selection = FALSE;
+	newtf->text.has_clipboard_selection = FALSE;
+	newtf->text.has_destination_selection = FALSE;
+	newtf->text.selection_position = 0;
+	newtf->text.preedit_position = 0;
+	newtf->text.first_visible = 0;
+	newtf->text.preedit_start = 0;
+	newtf->text.preedit_end = 0;
+	newtf->text.last_time = 0;
+	newtf->text.timer_id = 0;
+	newtf->text.text_length = strlen(origvalue);
+	newtf->text.cursor_position = newtf->text.text_length;
+	newtf->text.text_size = MAX(newtf->text.text_length, DEF_TEXT_SIZE);
+	newtf->text.value = XtMalloc(newtf->text.text_size);
+	snprintf(newtf->text.value, newtf->text.text_size, "%s", origvalue);
+}
+
 static void 
 Realize(Widget w, XtValueMask *valuemask, XSetWindowAttributes *attrs)
 {
+	CtrlTextFieldWidget textw;
 	XtRealizeProc realize;
 
+	textw = (CtrlTextFieldWidget)w;
 	realize = ctrlTextFieldWidgetClass->core_class.superclass->core_class.realize;
 	(*realize)(w, valuemask, attrs);
 	(void)_CtrlGetInputContext(
@@ -221,6 +289,15 @@ Realize(Widget w, XtValueMask *valuemask, XSetWindowAttributes *attrs)
 		PreeditCaret,
 		PreeditDestroy
 	);
+}
+
+static void
+Destroy(Widget w)
+{
+	CtrlTextFieldWidget textw;
+
+	textw = (CtrlTextFieldWidget)w;
+#warning TODO: implement TextField destroy function
 }
 
 static int

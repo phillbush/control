@@ -4,7 +4,6 @@
 #include <control/ControlP.h>
 #include <control/TextField.h>
 #include <control/PrimitiveP.h>
-#include <X11/Xft/Xft.h>
 
 typedef struct {
 	int foo;                                        /* dummy field */
@@ -39,9 +38,9 @@ typedef struct {
 	Cardinal                preedit_position;       /* position of input cursor while compositing */
 	Cardinal                preedit_start;
 	Cardinal                preedit_end;
-	XftFont                *font;
-	XftColor               *foreground;
-	XftColor               *selected_color;
+	XtPointer              *font;
+	XtPointer              *foreground;
+	XtPointer              *selected_color;
 	Time                    last_time;              /* time of last selection event */
 	Time                    blink_rate;             /* rate of blinking text cursor in msec */
 	Dimension               select_threshold;
@@ -58,6 +57,7 @@ typedef struct {
 	Boolean                 selection_move;
 	Boolean                 overstrike;
 	Boolean                 under_preedit;
+	XtIntervalId            timer_id;
 } CtrlTextFieldPart;
 
 typedef struct _CtrlTextFieldRec {

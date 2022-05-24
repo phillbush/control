@@ -2,6 +2,31 @@
 
 #include "ControlI.h"
 
+#define FREE(p) XtFree((char *)(p))
+#define WARN(app, name, msg)  XtAppWarningMsg((app), (name), __func__, "ToolkitError", (msg), NULL, 0)
+#define ERROR(app, name, msg) XtAppErrorMsg((app), (name), __func__, "ToolkitError", (msg), NULL, 0)
+#define SET_CONVERTER(orig, tgt, cache) XtSetTypeConverter(CtrlR##orig, CtrlR##tgt, Cvt##orig##To##tgt, NULL, 0, cache, Cvt##tgt##Destroy)
+#define CONVERTER_DONE(to, type, value)                         \
+{                                                               \
+	if ((to)->addr != NULL) {                               \
+		if ((to)->size < sizeof(type)) {                \
+			(to)->size = sizeof(type);              \
+			goto error;                             \
+		} else {                                        \
+			*((type *)((to)->addr)) = (value);      \
+		}                                               \
+	} else {                                                \
+		(to)->addr = (XPointer)&(type){(value)};        \
+	}                                                       \
+	(to)->size = sizeof(type);                              \
+}
+
+typedef struct _CtrlFontRec {
+	Display        *dpy;
+	XftFont        *xftfont;
+	/* we do not do reference counting here; XftFont already does that */
+} _CtrlFontRec, *_CtrlFont;
+
 struct _CtrlInputMethodRec {
 	XContext        context;
 	XIM             xim;
@@ -19,15 +44,98 @@ struct _CtrlInputContextRec {
 static XContext ximcontext = 0;
 static XContext xiccontext = 0;
 
-void
-_CtrlInitializeConverters(void)
+static Boolean
+CvtStringToXftFont(Display *dpy, XrmValue *args, Cardinal *nargs, XrmValue *from, XrmValue *to, XtPointer *data)
 {
-	static Boolean initialized = FALSE;
+	_CtrlFont font;
+	String fontName;
+	XtAppContext app;
 
-	if (initialized)
+	(void)args;
+	(void)nargs;
+	(void)data;
+	font = NULL;
+	app = XtDisplayToApplicationContext(dpy);
+	XtAppLock(app);
+	if (from->addr == NULL)
+		goto error;
+	fontName = (String)from->addr;
+	font = (_CtrlFont)XtMalloc(sizeof(*font));
+	font->dpy = dpy;
+	if ((font->xftfont = XftFontOpenXlfd(dpy, DefaultScreen(dpy), fontName)) == NULL) {
+		if ((font->xftfont = XftFontOpenName(dpy, DefaultScreen(dpy), fontName)) == NULL) {
+			WARN(app, "unknownValue", "could not open font");
+			goto error;
+		}
+	}
+	XtAppUnlock(app);
+	CONVERTER_DONE(to, _CtrlFont, font)
+	return TRUE;
+error:
+	XtAppUnlock(app);
+	if (font->xftfont != NULL)
+		XftFontClose(dpy, font->xftfont);
+	FREE(font);
+	return FALSE;
+}
+
+static void
+CvtXftFontDestroy(XtAppContext app, XrmValue *to, XtPointer data, XrmValue *args, Cardinal *nargs)
+{
+	_CtrlFont font;
+
+	(void)app;
+	(void)data;
+	(void)args;
+	(void)nargs;
+	font = *((_CtrlFont *)to->addr);
+	XftFontClose(font->dpy, font->xftfont);
+	FREE(font);
+}
+
+void
+_CtrlRegisterConverters(void)
+{
+	static Boolean registered = FALSE;
+
+	/*
+	 * Converter functions and their respective destructor functions are
+	 * registered here by the SET_CONVERTER(Origin, Target, cache) macro.
+	 * This macro supposes that the following objects exist, with these
+	 * names:
+	 *
+	 * - A CtrlROrigin string, used to name the Origin type.  This should
+	 *   be a macro to a string defined in include/control/Control.h
+	 *
+	 * - A CtrlRTarget string, used to name the Target type.  this should
+	 *   be a macro to a string defined in include/control/Control.h
+	 *
+	 * - A CvtOriginToTarget function (of type XtTypeConverter), used to
+	 *   convert between the origin and Target types.  This should be a
+	 *   static function defined in this source file.
+	 *
+	 * - A CvtTargetDestroy function (of type XtDestructor), used to
+	 *   destroy (or decrement a reference counter) of an object of
+	 *   the Target type.  This should be a static function defined
+	 *   in this source file.
+	 *
+	 * NOTE: Some of our Target types are structs that contain
+	 * everything necessary to use and destroy their objects.  For
+	 * example, our _CtrlFont contains a Display *object and a
+	 * XftFont *object.
+	 *
+	 * NOTE: It would be prudent to use reference counting on our Target
+	 * objects (for example, _CtrlFont objects) for we not to have to
+	 * allocate a new one for each widget with the same Origin value.
+	 * However, some underlying objects (for example, XftFont, in case of
+	 * _CtrlFont objects) are already implemented using reference counters
+	 * (by libXft, in our example).  So there's no need to use reference
+	 * counting here.
+	 */
+	if (registered)
 		return;
-	initialized = TRUE;
-#warning TODO: initialize converters
+	registered = TRUE;
+	SET_CONVERTER(String, XftFont, XtCacheAll);
 }
 
 void
@@ -146,7 +254,7 @@ _CtrlDrawTopShadow(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Position 
 	XFillRectangles (dpy, pix, gc, rects, bi * 2);
 	XtAppUnlock(app);
 	XFreeGC(dpy, gc);
-	XtFree((char *)rects);
+	FREE(rects);
 }
 
 void
@@ -187,7 +295,7 @@ _CtrlDrawBottomShadow(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Positi
 	XFillRectangles (dpy, pix, gc, rects, bi * 2);
 	XtAppUnlock(app);
 	XFreeGC(dpy, gc);
-	XtFree((char *)rects);
+	FREE(rects);
 }
 
 void
@@ -242,15 +350,7 @@ done:
 	return im;
 error:
 	XtAppUnlock(app);
-	XtAppErrorMsg(
-		app,
-		"noInputMethod",
-		"_CtrlGetInputMethod",
-		"XtToolkitError",
-		"Couldn't open input method",
-		NULL,
-		0
-	);
+	ERROR(app, "noInputMethod", "could not open input method");
 	return NULL;
 }
 
@@ -264,6 +364,7 @@ _CtrlGetInputContext(Display *dpy, Widget w, XICProc startp, XICProc donep, XICP
 	Window win;
 
 	/* get input context for window (create one if non existant) */
+	preedit = NULL;
 	app = XtDisplayToApplicationContext(dpy);
 	win = XtWindow(w);
 	im = _CtrlGetInputMethod(dpy);
@@ -313,20 +414,13 @@ _CtrlGetInputContext(Display *dpy, Widget w, XICProc startp, XICProc donep, XICP
 		goto error;
 	if (XGetICValues(ic->xic, XNFilterEvents, &ic->event_mask, NULL) != NULL)
 		goto error;
-	XFree(preedit);
 done:
+	XFree(preedit);
 	XtAppUnlock(app);
 	return ic;
 error:
+	XFree(preedit);
 	XtAppUnlock(app);
-	XtAppErrorMsg(
-		app,
-		"noInputContext",
-		"_CtrlGetInputContext",
-		"XtToolkitError",
-		"Couldn't create input context",
-		NULL,
-		0
-	);
+	ERROR(app, "noInputContext", "could not create input context");
 	return NULL;
 }

@@ -221,7 +221,7 @@ WidgetClass ctrlPrimitiveWidgetClass = (WidgetClass)&ctrlPrimitiveClassRec;
 static void
 ClassInitialize(void)
 {
-	_CtrlInitializeConverters();
+	_CtrlRegisterConverters();
 }
 
 static void
