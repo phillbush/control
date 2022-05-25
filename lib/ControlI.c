@@ -44,7 +44,7 @@ static XContext ximcontext = 0;
 static XContext xiccontext = 0;
 
 static Boolean
-CvtStringToXftFont(Display *dpy, XrmValue *args, Cardinal *nargs, XrmValue *from, XrmValue *to, XtPointer *data)
+CvtStringToFont(Display *dpy, XrmValue *args, Cardinal *nargs, XrmValue *from, XrmValue *to, XtPointer *data)
 {
 	_CtrlFont font;
 	String fontName;
@@ -81,7 +81,7 @@ error:
 }
 
 static void
-CvtXftFontDestroy(XtAppContext app, XrmValue *to, XtPointer data, XrmValue *args, Cardinal *nargs)
+CvtFontDestroy(XtAppContext app, XrmValue *to, XtPointer data, XrmValue *args, Cardinal *nargs)
 {
 	_CtrlFont font;
 
@@ -103,17 +103,17 @@ _CtrlRegisterConverters(void)
 		char            *to_type;
 		XtTypeConverter  converter;
 		XtCacheType      cache_type;
-		XtDestructur     destructor;
+		XtDestructor     destructor;
 	} converters[] = {
 		{
 			CtrlRString,
-			CtrlRXtFont,
-			CvtStringToXtFont,
+			CtrlRFont,
+			CvtStringToFont,
 			XtCacheByDisplay | XtCacheRefCount,
-			CvtXftFontDestroy
+			CvtFontDestroy
 		},
 	};
-	int i;
+	Cardinal i;
 
 	/*
 	 * Converter functions and their respective destructor functions

@@ -270,6 +270,17 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	newtf->text.text_size = MAX(newtf->text.text_length, DEF_TEXT_SIZE);
 	newtf->text.value = XtMalloc(newtf->text.text_size);
 	snprintf(newtf->text.value, newtf->text.text_size, "%s", origvalue);
+}
+
+static void 
+Realize(Widget w, XtValueMask *valuemask, XSetWindowAttributes *attrs)
+{
+	CtrlTextFieldWidget textw;
+	XtRealizeProc realize;
+
+	textw = (CtrlTextFieldWidget)w;
+	realize = ctrlTextFieldWidgetClass->core_class.superclass->core_class.realize;
+	(*realize)(w, valuemask, attrs);
 	(void)_CtrlGetInputContext(
 		XtDisplay(w), w,
 		PreeditStart,
@@ -278,15 +289,6 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 		PreeditCaret,
 		PreeditDestroy
 	);
-}
-
-static void 
-Realize(Widget w, XtValueMask *valuemask, XSetWindowAttributes *attrs)
-{
-	XtRealizeProc realize;
-
-	realize = ctrlTextFieldWidgetClass->core_class.superclass->core_class.realize;
-	(*realize)(w, valuemask, attrs);
 }
 
 static void
