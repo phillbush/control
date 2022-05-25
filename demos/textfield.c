@@ -1,8 +1,8 @@
 #include <X11/Shell.h>
-#include <control/Primitive.h>
+#include <control/TextField.h>
 
 static String fallbackresources[] = {
-	"*CtrlPrimitive.cursor:             pirate",
+	"*CtrlTextField.value:          \"Hello World\"",
 	NULL
 };
 
@@ -23,11 +23,9 @@ main(int argc, char *argv[])
 		NULL, 0
 	);
 	(void)XtVaCreateManagedWidget(
-		"primitive",
-		ctrlPrimitiveWidgetClass,
+		"textfield",
+		ctrlTextFieldWidgetClass,
 		shell,
-		CtrlNwidth,     100,
-		CtrlNheight,    100,
 		NULL
 	);
 	XtRealizeWidget(shell);

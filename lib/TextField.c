@@ -9,6 +9,12 @@
 static void Initialize(Widget, Widget, ArgList, Cardinal *);
 static void Realize(Widget, XtValueMask *, XSetWindowAttributes *);
 static void Destroy(Widget);
+static void Resize(Widget);
+static Boolean SetValues(Widget, Widget, Widget, ArgList, Cardinal *);
+static XtGeometryResult QueryGeometry(Widget, XtWidgetGeometry *, XtWidgetGeometry *);
+
+/* primitive methods */
+static void Draw(Widget);
 
 /* preedit callback functions */
 static int PreeditStart(XIC, XPointer, XPointer);
@@ -17,15 +23,27 @@ static int PreeditDraw(XIC, XPointer, XPointer);
 static int PreeditCaret(XIC, XPointer, XPointer);
 static int PreeditDestroy(XIC, XPointer, XPointer);
 
+/* helper widget-internal functions */
+static void AdjustText(CtrlTextFieldWidget, Cardinal);
+
 static XtActionsRec actions[] = {
 #warning TODO: Fill in TextField actions[]
 };
 
 static XtResource resources[] = {
 	{
+		.resource_name   = CtrlNcolumns,
+		.resource_class  = CtrlCColumns,
+		.resource_type   = CtrlRCardinal,
+		.resource_size   = sizeof(Cardinal),
+		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.columns),
+		.default_type    = CtrlRImmediate,
+		.default_addr    = (XtPointer)DEF_TEXT_COLUMNS,
+	},
+	{
 		.resource_name   = CtrlNfont,
 		.resource_class  = CtrlCFont,
-		.resource_type   = CtrlRXftFont,
+		.resource_type   = CtrlRFont,
 		.resource_size   = sizeof(XtPointer),
 		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.font),
 		.default_type    = CtrlRString,
@@ -184,6 +202,15 @@ static XtResource resources[] = {
 		.default_type    = CtrlRImmediate,
 		.default_addr    = (XtPointer)TRUE,
 	},
+	{
+		.resource_name   = CtrlNcursor,
+		.resource_class  = CtrlCCursor,
+		.resource_type   = CtrlRCursor,
+		.resource_size   = sizeof(Cursor),
+		.resource_offset = XtOffsetOf(CtrlTextFieldRec, primitive.cursor),
+		.default_type    = CtrlRString,
+		.default_addr    = "pirate",
+	},
 };
 
 CtrlTextFieldClassRec ctrlTextFieldClassRec = {
@@ -206,13 +233,16 @@ CtrlTextFieldClassRec ctrlTextFieldClassRec = {
 		.compress_enterleave    = TRUE,
 		.visible_interest       = FALSE,
 		.destroy                = Destroy,
-
+		.resize                 = Resize,
+		.expose                 = XtInheritExpose,
+		.set_values             = SetValues,
 		.set_values_almost      = XtInheritSetValuesAlmost,
 		.get_values_hook        = NULL,
 		.accept_focus           = NULL,
 		.version                = XtVersion,
 		.callback_private       = NULL,
 		.tm_table               = NULL,
+		.query_geometry         = QueryGeometry,
 		.display_accelerator    = NULL,
 		.extension              = NULL,
 
@@ -227,10 +257,12 @@ CtrlTextFieldClassRec ctrlTextFieldClassRec = {
 		.unpress                = (XtWidgetProc)_XtInherit,
 		.tooltip_post           = (XtWidgetProc)_XtInherit,
 		.tooltip_unpost         = (XtWidgetProc)_XtInherit,
+		.draw                   = Draw,
 		.activate               = NULL,
 		.translations           = NULL,
 	},
 	.text_class = {
+		0 /* nothing */
 	},
 };
 
@@ -240,9 +272,9 @@ static void
 Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 {
 	CtrlTextFieldWidget reqtf, newtf;
-	Dimension width, height;
 	XtAppContext app;
 	String origvalue;
+	Dimension thickness;
 
 	(void)args;
 	(void)nargs;
@@ -250,6 +282,9 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	reqtf = (CtrlTextFieldWidget)rw;;
 	newtf = (CtrlTextFieldWidget)nw;;
 	origvalue = newtf->text.value;
+	newtf->primitive.focusable = TRUE;
+	newtf->primitive.pressed = TRUE;
+	newtf->primitive.is3d = TRUE;
 	newtf->text.blink_on = TRUE;
 	newtf->text.has_focus = FALSE;
 	newtf->text.overstrike = FALSE;
@@ -264,21 +299,33 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	newtf->text.preedit_start = 0;
 	newtf->text.preedit_end = 0;
 	newtf->text.last_time = 0;
+	newtf->text.h_offset = 0;
 	newtf->text.timer_id = 0;
 	newtf->text.text_length = strlen(origvalue);
 	newtf->text.cursor_position = newtf->text.text_length;
 	newtf->text.text_size = MAX(newtf->text.text_length, DEF_TEXT_SIZE);
 	newtf->text.value = XtMalloc(newtf->text.text_size);
+	_CtrlGetFontMetrics(
+		app,
+		newtf->text.font,
+		&newtf->text.font_average_width,
+		&newtf->text.font_ascent,
+		&newtf->text.font_descent,
+		&newtf->text.font_height
+	);
+	thickness = 2 * (newtf->primitive.highlight_thickness + newtf->primitive.shadow_thickness);
+	if (reqtf->core.width == 0)
+		newtf->core.width = thickness + 2 * newtf->text.margin_width + newtf->text.columns * newtf->text.font_average_width;
+	if (reqtf->core.height == 0)
+		newtf->core.height = thickness + 2 * newtf->text.margin_height + newtf->text.font_height;
 	snprintf(newtf->text.value, newtf->text.text_size, "%s", origvalue);
 }
 
 static void 
 Realize(Widget w, XtValueMask *valuemask, XSetWindowAttributes *attrs)
 {
-	CtrlTextFieldWidget textw;
 	XtRealizeProc realize;
 
-	textw = (CtrlTextFieldWidget)w;
 	realize = ctrlTextFieldWidgetClass->core_class.superclass->core_class.realize;
 	(*realize)(w, valuemask, attrs);
 	(void)_CtrlGetInputContext(
@@ -297,7 +344,79 @@ Destroy(Widget w)
 	CtrlTextFieldWidget textw;
 
 	textw = (CtrlTextFieldWidget)w;
-#warning TODO: implement TextField destroy function
+	XtFree(textw->text.value);
+}
+
+static void
+Resize(Widget w)
+{
+	XtWidgetProc resize;
+	CtrlTextFieldWidget textw;
+	Dimension new_width, text_width;
+	Position offset, padding;
+
+	resize = ctrlTextFieldWidgetClass->core_class.superclass->core_class.resize;
+	(*resize)(w);
+	textw = (CtrlTextFieldWidget)w;
+	padding = textw->text.margin_width + textw->primitive.shadow_thickness + textw->primitive.shadow_thickness;
+	text_width = _CtrlGetTextWidth(textw->text.font, textw->text.value, textw->text.text_length);
+	new_width = textw->core.width - 2 * padding;
+	offset = textw->text.h_offset - padding;
+	if (text_width - new_width < -offset) {
+		textw->text.h_offset = padding;
+		if (text_width - new_width >= 0) {
+			textw->text.h_offset += new_width - text_width;
+		}
+	}
+	AdjustText(textw, textw->text.cursor_position);
+	Draw(w);
+}
+
+static XtGeometryResult
+QueryGeometry(Widget w, XtWidgetGeometry *intended, XtWidgetGeometry *desired)
+{
+	CtrlTextFieldWidget textw;
+	Dimension thickness, width;
+
+	textw = (CtrlTextFieldWidget)w;
+	thickness = 2 * (textw->primitive.highlight_thickness + textw->primitive.shadow_thickness);
+	width = thickness + 2 * textw->text.margin_width + textw->text.columns * textw->text.font_average_width;
+	if (intended->request_mode & CWWidth)
+		desired->width = MAX(width, intended->width);
+	desired->height = thickness + 2 * textw->text.margin_height + textw->text.font_height;
+	return _CtrlReplyToQueryGeometry(w, intended, desired);
+}
+
+static Boolean
+SetValues(Widget cw, Widget rw, Widget nw, ArgList args, Cardinal *nargs)
+{
+	CtrlTextFieldWidget oldw, neww;
+	Boolean redisplay;
+
+	(void)rw;
+	(void)args;
+	(void)nargs;
+	redisplay = FALSE;
+	oldw = (CtrlTextFieldWidget)cw;
+	neww = (CtrlTextFieldWidget)nw;
+
+	if (neww->core.being_destroyed)
+		return FALSE;
+#warning TODO: write SetValues
+	if (neww->core.width == 0)
+		neww->core.width = oldw->core.width;
+	if (neww->core.height == 0)
+		neww->core.height = oldw->core.height;
+	return redisplay;
+}
+
+static void
+Draw(Widget w)
+{
+	XtWidgetProc draw;
+
+	draw = ((CtrlPrimitiveWidgetClass)ctrlPrimitiveWidgetClass)->primitive_class.draw;
+	(*draw)(w);
 }
 
 static int
@@ -348,4 +467,19 @@ PreeditDestroy(XIC xic, XPointer client_data, XPointer call_data)
 	(void)call_data;
 	return -1;
 #warning TODO: write preedit callback functions
+}
+
+/* update textw->text.h_offset for character at cursor_position to be visible */
+static void
+AdjustText(CtrlTextFieldWidget textw, Cardinal cursor_position)
+{
+	Position left, margin, diff;
+
+	margin = textw->text.margin_width + textw->primitive.shadow_thickness + textw->primitive.highlight_thickness;
+	left = _CtrlGetTextWidth(textw->text.font, textw->text.value, cursor_position) + textw->text.h_offset;
+	if ((diff = left - margin) < 0) {                               /* scroll text to the right */
+		textw->text.h_offset -= diff;
+	} else if ((diff = left - textw->core.width + margin) > 0) {    /* scroll text to the left */
+		textw->text.h_offset -= diff;
+	}
 }

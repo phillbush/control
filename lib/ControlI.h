@@ -7,6 +7,7 @@
 
 /* resource default values */
 #define DEF_THICKNESS           2
+#define DEF_TEXT_COLUMNS        20
 #define DEF_TEXT_MARGIN         5
 #define DEF_TEXT_SIZE           1024
 #define DEF_BLINK_RATE          500
@@ -24,5 +25,8 @@ void _CtrlDrawHighlight(Display *, Pixmap, Pixmap, Pixel, Position, Position, Di
 void _CtrlDrawTopShadow(Display *, Pixmap, Pixmap, Pixel, Position, Position, Dimension, Dimension, Dimension, Dimension);
 void _CtrlDrawBottomShadow(Display *, Pixmap, Pixmap, Pixel, Position, Position, Dimension, Dimension, Dimension, Dimension);
 void _CtrlCommitPixmap(Display *, Window, Pixmap, Position, Position, Dimension, Dimension);
+void _CtrlGetFontMetrics(XtAppContext, XtPointer, Dimension *, Dimension *, Dimension *, Dimension *);
+int _CtrlGetTextWidth(XtPointer, String, Cardinal);
 struct _CtrlInputMethodRec *_CtrlGetInputMethod(Display *dpy);
 struct _CtrlInputContextRec *_CtrlGetInputContext(Display *dpy, Widget w, XICProc start, XICProc done, XICProc draw, XICProc caret, XICProc destroy);
+XtGeometryResult _CtrlReplyToQueryGeometry(Widget, XtWidgetGeometry *, XtWidgetGeometry *);

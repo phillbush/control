@@ -23,7 +23,6 @@
 typedef struct _CtrlFontRec {
 	Display        *dpy;
 	XftFont        *xftfont;
-	/* we do not do reference counting here; XftFont already does that */
 } _CtrlFontRec, *_CtrlFont;
 
 struct _CtrlInputMethodRec {
@@ -330,6 +329,30 @@ _CtrlCommitPixmap(Display *dpy, Window win, Pixmap pix, Position x, Position y, 
 	XFreeGC(dpy, gc);
 }
 
+void
+_CtrlGetFontMetrics(XtAppContext app, XtPointer font, Dimension *average_width, Dimension *ascent, Dimension *descent, Dimension *height)
+{
+	if (font == NULL)
+		ERROR(app, "noFont", "could not get font metrics");
+	if (average_width != NULL)
+		*average_width = ((_CtrlFont)font)->xftfont->max_advance_width;
+	if (ascent != NULL)
+		*ascent        = ((_CtrlFont)font)->xftfont->ascent;
+	if (descent != NULL)
+		*descent       = ((_CtrlFont)font)->xftfont->descent;
+	if (height != NULL)
+		*height        = ((_CtrlFont)font)->xftfont->height;
+}
+
+int
+_CtrlGetTextWidth(XtPointer font, String text, Cardinal len)
+{
+	XGlyphInfo box;
+
+	XftTextExtentsUtf8(((_CtrlFont)font)->dpy, ((_CtrlFont)font)->xftfont, text, len, &box);
+	return box.xOff;
+}
+
 struct _CtrlInputMethodRec *
 _CtrlGetInputMethod(Display *dpy)
 {
@@ -439,4 +462,26 @@ error:
 	XtAppUnlock(app);
 	ERROR(app, "noInputContext", "could not create input context");
 	return NULL;
+}
+
+XtGeometryResult
+_CtrlReplyToQueryGeometry(Widget w, XtWidgetGeometry *intended, XtWidgetGeometry *desired)
+{
+	XtAppContext app;
+	XtGeometryResult ret;
+
+	app = XtWidgetToApplicationContext(w);
+	desired->request_mode = CWWidth | CWHeight;
+	if ((intended->request_mode & CWWidth) &&
+	    (intended->request_mode & CWHeight) &&
+	    intended->width == desired->width &&
+	    intended->height == desired->height) {
+		return XtGeometryYes;
+	}
+	XtAppLock(app);
+	ret = (desired->width == w->core.width && desired->height == w->core.height)
+	    ? XtGeometryNo
+	    : XtGeometryAlmost;
+	XtAppUnlock(app);
+	return ret;
 }

@@ -111,8 +111,6 @@
 #define CtrlNhighlightPixmap            "highlightPixmap"
 #define CtrlNisTabGroup                 "isTabGroup"
 #define CtrlNtraverseable               "traverseable"
-#define CtrlNpressable                  "pressable"
-#define CtrlNfocusable                  "focusable"
 #define CtrlNpreeditStartCallback       "preeditStartCallback"
 #define CtrlNpreeditDoneCallback        "preeditDoneCallback"
 #define CtrlNpreeditDrawCallback        "preeditDrawCallback"
@@ -133,6 +131,7 @@
 #define CtrlNcursorPosition             "cursorPosition"
 #define CtrlNblinkRate                  "blinkRate"
 #define CtrlNselectThreshold            "selectThreshold"
+#define CtrlNcolumns                    "columns"
 
 /* resource class definitions */
 #define CtrlCAccelerators               XtCAccelerators
@@ -213,13 +212,12 @@
 #define CtrlCHighlightPixmap            "HighlightPixmap"
 #define CtrlCIsTabGroup                 "IsTabGroup"
 #define CtrlCTraverseable               "Traverseable"
-#define CtrlCPressable                  "Pressable"
-#define CtrlCFocusable                  "Focusable"
 #define CtrlCMarginWidth                "MarginWidth"
 #define CtrlCMarginHeight               "MarginHeight"
 #define CtrlCCursorPosition             "CursorPosition"
 #define CtrlCBlinkRate                  "BlinkRate"
 #define CtrlCSelectThreshold            "SelectThreshold"
+#define CtrlCColumns                    "Columns"
 
 /* resource representation type definitions */
 #define CtrlRAcceleratorTable           XtRAcceleratorTable
@@ -275,7 +273,6 @@
 #define CtrlRWindow                     XtRWindow
 #define CtrlRTextPosition               XtCTextPosition
 #define CtrlRTime                       "Time"
-#define CtrlRXftFont                    "XftFont"
 
 /* resource enum definitions */
 #define CtrlEfalse                      XtEfalse

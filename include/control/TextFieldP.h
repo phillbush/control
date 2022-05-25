@@ -38,14 +38,17 @@ typedef struct {
 	Cardinal                preedit_position;       /* position of input cursor while compositing */
 	Cardinal                preedit_start;
 	Cardinal                preedit_end;
-	XtPointer              *font;
-	XtPointer              *foreground;
-	XtPointer              *selected_color;
+	Cardinal                columns;                /* number of character columns in the text input field */
+	XtPointer               font;
+	XtPointer               foreground;
+	XtPointer               selected_color;
 	Time                    last_time;              /* time of last selection event */
 	Time                    blink_rate;             /* rate of blinking text cursor in msec */
+	Position                h_offset;
 	Dimension               select_threshold;
 	Dimension               margin_width;
 	Dimension               margin_height;
+	Dimension               font_average_width;     /* average character width */
 	Dimension               font_height;
 	Dimension               font_ascent;
 	Dimension               font_descent;

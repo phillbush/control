@@ -13,6 +13,7 @@ typedef struct {
 	XtWidgetProc            tooltip_post;
 	XtWidgetProc            tooltip_unpost;
 	XtActionProc            activate;
+	XtWidgetProc            draw;
 	String                  translations;
 } CtrlPrimitiveClassPart;
 
@@ -27,14 +28,12 @@ typedef struct {
 	/* resource fields */
 	Pixel                   foreground;
 
-	Boolean                 pressable;
 	Dimension               shadow_thickness;
 	Pixel                   shadow_light_pixel;
 	Pixmap                  shadow_light_pixmap;
 	Pixel                   shadow_dark_pixel;
 	Pixmap                  shadow_dark_pixmap;
 
-	Boolean                 focusable;
 	Dimension               highlight_thickness;
 	Pixel                   highlight_pixel;
 	Pixmap                  highlight_pixmap;
@@ -47,6 +46,8 @@ typedef struct {
 	Cursor                  cursor;
 
 	/* widget state */
+	Boolean                 is3d;
+	Boolean                 focusable;
 	Boolean                 highlighted;    /* whether the highlight border is drawn around the widget */
 	Boolean                 pressed;        /* whether the shadow borders are inverted */
 	Boolean                 have_traversal; /* whether the widget has the traversal focus */
