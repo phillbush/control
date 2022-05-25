@@ -5,7 +5,6 @@
 #define FREE(p) XtFree((char *)(p))
 #define WARN(app, name, msg)  XtAppWarningMsg((app), (name), __func__, "ToolkitError", (msg), NULL, 0)
 #define ERROR(app, name, msg) XtAppErrorMsg((app), (name), __func__, "ToolkitError", (msg), NULL, 0)
-#define SET_CONVERTER(orig, tgt, cache) XtSetTypeConverter(CtrlR##orig, CtrlR##tgt, Cvt##orig##To##tgt, NULL, 0, cache, Cvt##tgt##Destroy)
 #define CONVERTER_DONE(to, type, value)                         \
 {                                                               \
 	if ((to)->addr != NULL) {                               \
@@ -99,12 +98,27 @@ void
 _CtrlRegisterConverters(void)
 {
 	static Boolean registered = FALSE;
+	static struct {
+		char            *from_type;
+		char            *to_type;
+		XtTypeConverter  converter;
+		XtCacheType      cache_type;
+		XtDestructur     destructor;
+	} converters[] = {
+		{
+			CtrlRString,
+			CtrlRXtFont,
+			CvtStringToXtFont,
+			XtCacheByDisplay | XtCacheRefCount,
+			CvtXftFontDestroy
+		},
+	};
+	int i;
 
 	/*
-	 * Converter functions and their respective destructor functions are
-	 * registered here by the SET_CONVERTER(Origin, Target, cache) macro.
-	 * This macro supposes that the following objects exist, with these
-	 * names:
+	 * Converter functions and their respective destructor functions
+	 * are registered here using the converters[] table.  This table
+	 * contains the following fields:
 	 *
 	 * - A CtrlROrigin string, used to name the Origin type.  This should
 	 *   be a macro to a string defined in include/control/Control.h
@@ -112,32 +126,32 @@ _CtrlRegisterConverters(void)
 	 * - A CtrlRTarget string, used to name the Target type.  this should
 	 *   be a macro to a string defined in include/control/Control.h
 	 *
-	 * - A CvtOriginToTarget function (of type XtTypeConverter), used to
-	 *   convert between the origin and Target types.  This should be a
-	 *   static function defined in this source file.
+	 * - A CvtOriginToTarget function, used to convert between the origin
+	 *   and Target types.  This should be a static function defined in
+	 *   this source file.
 	 *
-	 * - A CvtTargetDestroy function (of type XtDestructor), used to
-	 *   destroy (or decrement a reference counter) of an object of
-	 *   the Target type.  This should be a static function defined
-	 *   in this source file.
+	 * - A XtCacheSomething value specifying whether to reuse results from
+	 *   previous conversions.  See X Toolkit Intrinsics documentation for
+	 *   more information.
 	 *
-	 * NOTE: Some of our Target types are structs that contain
-	 * everything necessary to use and destroy their objects.  For
-	 * example, our _CtrlFont contains a Display *object and a
-	 * XftFont *object.
-	 *
-	 * NOTE: It would be prudent to use reference counting on our Target
-	 * objects (for example, _CtrlFont objects) for we not to have to
-	 * allocate a new one for each widget with the same Origin value.
-	 * However, some underlying objects (for example, XftFont, in case of
-	 * _CtrlFont objects) are already implemented using reference counters
-	 * (by libXft, in our example).  So there's no need to use reference
-	 * counting here.
+	 * - A CvtTargetDestroy function, used to destroy (or decrement a
+	 *   reference counter) of an object of the Target type.  This should
+	 *   be a static function defined in this source file.
 	 */
 	if (registered)
 		return;
 	registered = TRUE;
-	SET_CONVERTER(String, XftFont, XtCacheAll);
+	for (i = 0; i < XtNumber(converters); i++) {
+		XtSetTypeConverter(
+			converters[i].from_type,
+			converters[i].to_type,
+			converters[i].converter,
+			NULL,
+			0,
+			converters[i].cache_type,
+			converters[i].destructor
+		);
+	}
 }
 
 void
