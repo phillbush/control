@@ -1,6 +1,6 @@
 #include <control/ControlP.h>
 
-#include "ControlI.h"
+#include "control.h"
 
 #define FREE(p) XtFree((char *)(p))
 #define WARN(app, name, msg)  XtAppWarningMsg((app), (name), __func__, "ToolkitError", (msg), NULL, 0)

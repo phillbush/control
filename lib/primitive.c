@@ -1,6 +1,6 @@
 #include <control/PrimitiveP.h>
 
-#include "ControlI.h"
+#include "control.h"
 
 /* core methods */
 static void ClassInitialize(void);

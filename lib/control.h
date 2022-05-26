@@ -18,6 +18,8 @@
 #define DEF_SHADOW_DARK_COLOR   "#101010"
 #define DEF_HIGHLIGHT_COLOR     "#C5C8C6"
 
+extern char _CtrlTextTranslations[];
+
 void _CtrlRegisterConverters(void);
 void _CtrlNewPixmap(Display *, Pixmap *, Window, Dimension, Dimension, Cardinal);
 void _CtrlDrawRectangle(Display *, Pixmap, Pixmap, Pixel, Position, Position, Dimension, Dimension);

@@ -3,7 +3,7 @@
 
 #include <control/TextFieldP.h>
 
-#include "ControlI.h"
+#include "control.h"
 
 /* core methods */
 static void Initialize(Widget, Widget, ArgList, Cardinal *);
@@ -16,6 +16,9 @@ static XtGeometryResult QueryGeometry(Widget, XtWidgetGeometry *, XtWidgetGeomet
 /* primitive methods */
 static void Draw(Widget);
 
+/* actions */
+static void InsertChar(Widget, XEvent *, String *, Cardinal *);
+
 /* preedit callback functions */
 static int PreeditStart(XIC, XPointer, XPointer);
 static int PreeditDone(XIC, XPointer, XPointer);
@@ -27,7 +30,8 @@ static int PreeditDestroy(XIC, XPointer, XPointer);
 static void AdjustText(CtrlTextFieldWidget, Cardinal);
 
 static XtActionsRec actions[] = {
-#warning TODO: Fill in TextField actions[]
+	/* text replacing bindings */
+	{"insert-char",                 InsertChar},
 };
 
 static XtResource resources[] = {
@@ -241,7 +245,7 @@ CtrlTextFieldClassRec ctrlTextFieldClassRec = {
 		.accept_focus           = NULL,
 		.version                = XtVersion,
 		.callback_private       = NULL,
-		.tm_table               = NULL,
+		.tm_table               = _CtrlTextTranslations,
 		.query_geometry         = QueryGeometry,
 		.display_accelerator    = NULL,
 		.extension              = NULL,
@@ -417,6 +421,16 @@ Draw(Widget w)
 
 	draw = ((CtrlPrimitiveWidgetClass)ctrlPrimitiveWidgetClass)->primitive_class.draw;
 	(*draw)(w);
+}
+
+static void
+InsertChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	(void)w;
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	printf("ASDA\n");
 }
 
 static int
