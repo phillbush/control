@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <control/TextFieldP.h>
+#include <control_private.h>
 
-#include "control.h"
+#include "common.h"
 
 /* core methods */
 static void Initialize(Widget, Widget, ArgList, Cardinal *);

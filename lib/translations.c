@@ -2,6 +2,7 @@
 "<Key>:                         insert-char()\n"
 
 #define TRANSLATIONS_APPEND                             \
+"<Unmap>:                       unmap()\n"       \
 "<Enter>:                       enter-window()\n"       \
 "<Leave>:                       leave-window()\n"       \
 "<FocusIn>:                     focus-in()\n"           \

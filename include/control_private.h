@@ -1,13 +1,34 @@
-#ifndef _CTRL_TEXTFIELDP_H
-#define _CTRL_TEXTFIELDP_H
+#ifndef _CONTROL_PRIVATE_H
+#define _CONTROL_PRIVATE_H
 
-#include <control/ControlP.h>
-#include <control/TextField.h>
-#include <control/PrimitiveP.h>
+#include <control.h>
+#include <X11/IntrinsicP.h>
+#include <X11/CoreP.h>
+
+/* class part structures */
+
+typedef struct {
+	XtWidgetProc            highlight;
+	XtWidgetProc            unhighlight;
+	XtWidgetProc            press;
+	XtWidgetProc            unpress;
+	XtWidgetProc            tooltip_post;
+	XtWidgetProc            tooltip_unpost;
+	XtActionProc            activate;
+	XtWidgetProc            draw;
+	String                  translations;
+} CtrlPrimitiveClassPart;
 
 typedef struct {
 	int foo;                                        /* dummy field */
 } CtrlTextFieldClassPart;
+
+/* class structures */
+
+typedef struct _CtrlPrimitiveClassRec {
+	CoreClassPart           core_class;
+	CtrlPrimitiveClassPart  primitive_class;
+} CtrlPrimitiveClassRec;
 
 typedef struct _CtrlTextFieldClassRec {
 	CoreClassPart           core_class;
@@ -15,7 +36,37 @@ typedef struct _CtrlTextFieldClassRec {
 	CtrlTextFieldClassPart  text_class;
 } CtrlTextFieldClassRec;
 
-extern CtrlTextFieldClassRec    ctrlTextFieldClassRec;
+/* widget part structures */
+
+typedef struct {
+	/* resource fields */
+	Pixel                   foreground;
+
+	Dimension               shadow_thickness;
+	Pixel                   shadow_light_pixel;
+	Pixmap                  shadow_light_pixmap;
+	Pixel                   shadow_dark_pixel;
+	Pixmap                  shadow_dark_pixmap;
+
+	Dimension               highlight_thickness;
+	Pixel                   highlight_pixel;
+	Pixmap                  highlight_pixmap;
+
+	Boolean                 is_tab_group;
+	Boolean                 traverseable;
+
+	String                  tooltip;
+
+	Cursor                  cursor;
+
+	/* widget state */
+	Boolean                 is3d;
+	Boolean                 focusable;
+	Boolean                 highlighted;    /* whether the highlight border is drawn around the widget */
+	Boolean                 pressed;        /* whether the shadow borders are inverted */
+	Boolean                 have_traversal; /* whether the widget has the traversal focus */
+	Pixmap                  pixsave;        /* pixmap where to draw widget content to */
+} CtrlPrimitivePart;
 
 typedef struct {
 	XtCallbackList          activate_callback;
@@ -63,10 +114,21 @@ typedef struct {
 	XtIntervalId            timer_id;
 } CtrlTextFieldPart;
 
+/* widget structures */
+
+typedef struct _CtrlPrimitiveRec {
+	CorePart                core;
+	CtrlPrimitivePart       primitive;
+} CtrlPrimitiveRec;
+
 typedef struct _CtrlTextFieldRec {
 	CorePart                core;
 	CtrlPrimitivePart       primitive;
 	CtrlTextFieldPart       text;
 } CtrlTextFieldRec;
 
-#endif /* _CTRL_TEXTFIELDP_H */
+/* external objects */
+extern CtrlPrimitiveClassRec    ctrlPrimitiveClassRec;
+extern CtrlTextFieldClassRec    ctrlTextFieldClassRec;
+
+#endif /* _CONTROL_PRIVATE_H */

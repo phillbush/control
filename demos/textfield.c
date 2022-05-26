@@ -1,5 +1,5 @@
 #include <X11/Shell.h>
-#include <control/TextField.h>
+#include <control.h>
 
 static String fallbackresources[] = {
 	"*CtrlTextField.value:          \"Hello World\"",

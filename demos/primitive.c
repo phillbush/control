@@ -1,5 +1,5 @@
 #include <X11/Shell.h>
-#include <control/Primitive.h>
+#include <control.h>
 
 static String fallbackresources[] = {
 	"*CtrlPrimitive.cursor:             pirate",

@@ -1,8 +1,9 @@
-#ifndef _CTRL_CONTROL_H
-#define _CTRL_CONTROL_H
+#ifndef _CONTROL_H
+#define _CONTROL_H
 
 #include <X11/Intrinsic.h>
 #include <X11/StringDefs.h>
+#include <X11/Core.h>
 
 /* resource name definitions */
 #define CtrlNaccelerators               XtNaccelerators
@@ -290,4 +291,16 @@
 #define CtrlExtdefaultforeground        XtExtdefaultforeground
 #define CtrlEyes                        XtEyes
 
-#endif /* _CTRL_CONTROL_H */
+/* widget class types */
+typedef struct _CtrlPrimitiveClassRec  *CtrlPrimitiveWidgetClass;
+typedef struct _CtrlTextFieldClassRec  *CtrlTextFieldWidgetClass;
+
+/* widget types */
+typedef struct _CtrlPrimitiveRec       *CtrlPrimitiveWidget;
+typedef struct _CtrlTextFieldRec       *CtrlTextFieldWidget;
+
+/* widget classes */
+extern WidgetClass ctrlPrimitiveWidgetClass;
+extern WidgetClass ctrlTextFieldWidgetClass;
+
+#endif /* _CONTROL_H */
