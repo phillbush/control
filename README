@@ -5,27 +5,3 @@ This is still in very initial development stage.
 This is a work in progress.
 This is incomplete.
 This is ugly.
-
-Demonstration programs:
-• demo/include.mk:              Makefile for demonstration programs.
-• demo/primitive:               Demo for the ctrlPrimitive widget.
-
-Include files:
-• include/include.mk:           Makefile for headers.
-• include/control/Control.h:    General public headers.
-• include/control/ControlP.h:   General private headers.
-• include/control/*.h:          Public headers for widgets.
-• include/control/*P.h:         Private headers for widgets.
-
-Source files:
-• lib/include.mk:               Makefile for object files.
-• lib/ControlI.h:               Internal header.
-• lib/ControlI.c:               Internal module.
-• lib/*.c:                      Source files for widgets.
-
-Make targets:
-• make all:                     Same as `make lib`.
-• make lib:                     Build libcontrol.
-• make demos:                   Build demonstration programs.
-• make tags:                    Build ctags for vi(1).
-• make clean:                   Remove built files.
