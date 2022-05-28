@@ -133,6 +133,8 @@
 #define CtrlNblinkRate                  "blinkRate"
 #define CtrlNselectThreshold            "selectThreshold"
 #define CtrlNcolumns                    "columns"
+#define CtrlNselforeground              "selforeground"
+#define CtrlNselbackground              "selbackground"
 
 /* resource class definitions */
 #define CtrlCAccelerators               XtCAccelerators
@@ -219,6 +221,8 @@
 #define CtrlCBlinkRate                  "BlinkRate"
 #define CtrlCSelectThreshold            "SelectThreshold"
 #define CtrlCColumns                    "Columns"
+#define CtrlCSelforeground              "Selforeground"
+#define CtrlCSelbackground              "Selbackground"
 
 /* resource representation type definitions */
 #define CtrlRAcceleratorTable           XtRAcceleratorTable
@@ -274,6 +278,8 @@
 #define CtrlRWindow                     XtRWindow
 #define CtrlRTextPosition               XtCTextPosition
 #define CtrlRTime                       "Time"
+#define CtrlRXftFont                    "XftFont"
+#define CtrlRXftColor                   "XftColor"
 
 /* resource enum definitions */
 #define CtrlEfalse                      XtEfalse

@@ -30,11 +30,38 @@ static XtResource resources[] = {
 	{
 		.resource_name   = CtrlNforeground,
 		.resource_class  = CtrlCForeground,
-		.resource_type   = CtrlRPixel,
-		.resource_size   = sizeof(Pixel),
+		.resource_type   = CtrlRXftColor,
+		.resource_size   = sizeof(XtPointer),
 		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.foreground),
 		.default_type    = CtrlRString,
 		.default_addr    = (XtPointer)DEF_FOREGROUND,
+	},
+	{
+		.resource_name   = CtrlNfont,
+		.resource_class  = CtrlCFont,
+		.resource_type   = CtrlRXftFont,
+		.resource_size   = sizeof(XtPointer),
+		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.font),
+		.default_type    = CtrlRString,
+		.default_addr    = (XtPointer)DEF_FONT,
+	},
+	{
+		.resource_name   = CtrlNmarginHeight,
+		.resource_class  = CtrlCMarginHeight,
+		.resource_type   = CtrlRDimension,
+		.resource_size   = sizeof(Dimension),
+		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.margin_height),
+		.default_type    = CtrlRImmediate,
+		.default_addr    = (XtPointer)DEF_TEXT_MARGIN,
+	},
+	{
+		.resource_name   = CtrlNmarginWidth,
+		.resource_class  = CtrlCMarginWidth,
+		.resource_type   = CtrlRDimension,
+		.resource_size   = sizeof(Dimension),
+		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.margin_width),
+		.default_type    = CtrlRImmediate,
+		.default_addr    = (XtPointer)DEF_TEXT_MARGIN,
 	},
 	{
 		.resource_name   = CtrlNshadowThickness,
@@ -192,8 +219,6 @@ CtrlPrimitiveClassRec ctrlPrimitiveClassRec = {
 		.tooltip_unpost         = TooltipUnpost,
 		.activate               = Activate,
 		.draw                   = Draw,
-		.translations           = NULL,
-#warning TODO: implement translations
 	},
 };
 
@@ -226,8 +251,6 @@ ClassPartInitialize(WidgetClass wc)
 		c->primitive_class.tooltip_unpost = s->primitive_class.tooltip_unpost;
 	if (c->primitive_class.activate == (XtActionProc)_XtInherit)
 		c->primitive_class.activate = s->primitive_class.activate;
-	if (c->primitive_class.translations == XtInheritTranslations)
-		c->primitive_class.translations = s->primitive_class.translations;
 }
 
 static void
@@ -259,6 +282,15 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	/* alloc tooltip string */
 	if (new->primitive.tooltip != NULL)
 		new->primitive.tooltip = XtNewString(new->primitive.tooltip);
+
+	_CtrlGetFontMetrics(
+		XtWidgetToApplicationContext(nw),
+		new->primitive.font,
+		&new->primitive.font_average_width,
+		&new->primitive.font_ascent,
+		&new->primitive.font_descent,
+		&new->primitive.font_height
+	);
 }
 
 static void
@@ -275,7 +307,16 @@ Resize(Widget w)
 		primitivew->core.height,
 		primitivew->core.depth
 	);
-	Draw(w);
+	_CtrlDrawRectangle(
+		XtDisplay(w),
+		primitivew->primitive.pixsave,
+		primitivew->core.background_pixmap,
+		primitivew->core.background_pixel,
+		0, 0,
+		primitivew->core.width,
+		primitivew->core.height
+	);
+	(*(((CtrlPrimitiveWidgetClass)(XtClass(w)))->primitive_class.draw))(w);
 	_CtrlCommitPixmap(
 		XtDisplay(w),
 		XtWindow(w),
@@ -291,18 +332,14 @@ static void
 Realize(Widget w, XtValueMask *valuemask, XSetWindowAttributes *attrs)
 {
 	CtrlPrimitiveWidget primitivew;
-	XtRealizeProc realize;
 
 	primitivew = (CtrlPrimitiveWidget)w;
 	*valuemask |= CWDontPropagate;
 	attrs->do_not_propagate_mask = ButtonPressMask | ButtonReleaseMask | KeyPressMask | KeyReleaseMask | PointerMotionMask;
 	if ((attrs->cursor = primitivew->primitive.cursor) != None)
 		*valuemask |= CWCursor;
-	XtProcessLock();
-	realize = ctrlPrimitiveWidgetClass->core_class.superclass->core_class.realize;
-	XtProcessUnlock();
-	(*realize)(w, valuemask, attrs);
-	Resize(w);
+	(*ctrlPrimitiveWidgetClass->core_class.superclass->core_class.realize)(w, valuemask, attrs);
+	(*(((CtrlPrimitiveWidgetClass)(XtClass(w)))->core_class.resize))(w);
 }
 
 static void
@@ -390,15 +427,6 @@ Draw(Widget w)
 	CtrlPrimitiveWidget primitivew;
 
 	primitivew = (CtrlPrimitiveWidget)w;
-	_CtrlDrawRectangle(
-		XtDisplay(w),
-		primitivew->primitive.pixsave,
-		primitivew->core.background_pixmap,
-		primitivew->core.background_pixel,
-		0, 0,
-		primitivew->core.width,
-		primitivew->core.height
-	);
 	if (primitivew->primitive.focusable) {
 		_CtrlDrawHighlight(
 			XtDisplay(w),

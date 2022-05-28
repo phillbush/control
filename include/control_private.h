@@ -16,7 +16,6 @@ typedef struct {
 	XtWidgetProc            tooltip_unpost;
 	XtActionProc            activate;
 	XtWidgetProc            draw;
-	String                  translations;
 } CtrlPrimitiveClassPart;
 
 typedef struct {
@@ -40,7 +39,15 @@ typedef struct _CtrlTextFieldClassRec {
 
 typedef struct {
 	/* resource fields */
-	Pixel                   foreground;
+	XtPointer               foreground;
+
+	XtPointer               font;
+	Dimension               font_average_width;     /* average character width */
+	Dimension               font_height;
+	Dimension               font_ascent;
+	Dimension               font_descent;
+	Dimension               margin_width;
+	Dimension               margin_height;
 
 	Dimension               shadow_thickness;
 	Pixel                   shadow_light_pixel;
@@ -80,29 +87,21 @@ typedef struct {
 	XtCallbackList          modify_verify_callback;
 	XtCallbackList          motion_verify_callback;
 	XtCallbackList          value_changed_callback;
+	XtPointer               selforeground;
+	Pixel                   selbackground;
 	String                  value;
 	Cardinal                text_size;              /* size of allocated value string */
 	Cardinal                text_length;            /* used size of value string */
-	Cardinal                cursor_position;        /* position of the insertion cursor and one selection extremity */
-	Cardinal                selection_position;     /* position of the other selection extremity */
-	Cardinal                first_visible;          /* position of first visible character */
-	Cardinal                preedit_position;       /* position of input cursor while compositing */
-	Cardinal                preedit_start;
-	Cardinal                preedit_end;
 	Cardinal                columns;                /* number of character columns in the text input field */
-	XtPointer               font;
-	XtPointer               foreground;
-	XtPointer               selected_color;
 	Time                    last_time;              /* time of last selection event */
 	Time                    blink_rate;             /* rate of blinking text cursor in msec */
 	Position                h_offset;
+	Position                cursor_position;        /* position of the insertion cursor and one selection extremity */
+	Position                selection_position;     /* position of the other selection extremity */
+	Position                preedit_position;       /* position of input cursor while compositing */
+	Position                preedit_start;
+	Position                preedit_end;
 	Dimension               select_threshold;
-	Dimension               margin_width;
-	Dimension               margin_height;
-	Dimension               font_average_width;     /* average character width */
-	Dimension               font_height;
-	Dimension               font_ascent;
-	Dimension               font_descent;
 	Boolean                 blink_on;
 	Boolean                 has_focus;
 	Boolean                 has_primary_selection;
@@ -112,6 +111,7 @@ typedef struct {
 	Boolean                 overstrike;
 	Boolean                 under_preedit;
 	XtIntervalId            timer_id;
+	XIC                     xic;
 } CtrlTextFieldPart;
 
 /* widget structures */

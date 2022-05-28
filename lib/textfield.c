@@ -5,6 +5,10 @@
 
 #include "common.h"
 
+#define HALFTHICKNESS(w) (((CtrlPrimitiveWidget)(w))->primitive.highlight_thickness + ((CtrlPrimitiveWidget)(w))->primitive.shadow_thickness)
+#define THICKNESS(w)     (2 * HALFTHICKNESS(w))
+#define INPUTSIZE        1024
+
 /* core methods */
 static void Initialize(Widget, Widget, ArgList, Cardinal *);
 static void Realize(Widget, XtValueMask *, XSetWindowAttributes *);
@@ -28,6 +32,79 @@ static int PreeditDestroy(XIC, XPointer, XPointer);
 
 /* helper widget-internal functions */
 static void AdjustText(CtrlTextFieldWidget, Cardinal);
+static void Insert(CtrlTextFieldWidget, String, int);
+static void Redraw(Widget);
+
+char translations[] =
+"~s c <Key>A:                   beginning-of-line()\n"
+"~s ~c <Key>Home:               beginning-of-line()\n"
+"~s ~c <Key>KP_Home:            beginning-of-line()\n"
+"s c <Key>A:                    beginning-of-line(extend)\n"
+"s ~c <Key>Home:                beginning-of-line(extend)\n"
+"s ~c <Key>KP_Home:             beginning-of-line(extend)\n"
+"~s c <Key>B:                   backward-character()\n"
+"~s ~c <Key>Left:               backward-character()\n"
+"~s ~c <Key>KP_Left:            backward-character()\n"
+"s c <Key>B:                    backward-character(extend)\n"
+"s ~c <Key>Left:                backward-character(extend)\n"
+"s ~c <Key>KP_Left:             backward-character(extend)\n"
+"c <Key>C:                      copy-clipboard()\n"
+"c <Key>D:                      delete-next-character()\n"
+"~s c <Key>E:                   end-of-line()\n"
+"~s ~c <Key>End:                end-of-line()\n"
+"~s ~c <Key>KP_End:             end-of-line()\n"
+"s c <Key>E:                    end-of-line(extend)\n"
+"s ~c <Key>End:                 end-of-line(extend)\n"
+"s ~c <Key>KP_End:              end-of-line(extend)\n"
+"~s c <Key>F:                   forward-character()\n"
+"~s ~c <Key>Right:              forward-character()\n"
+"~s ~c <Key>KP_Right:           forward-character()\n"
+"s c <Key>F:                    forward-character(extend)\n"
+"s ~c <Key>Right:               forward-character(extend)\n"
+"s ~c <Key>KP_Right:            forward-character(extend)\n"
+"c <Key>H:                      delete-previous-character()\n"
+"~c <Key>BackSpace:             delete-previous-character()\n"
+"c <Key>K:                      kill-to-end-of-line()\n"
+"c <Key>U:                      kill-to-beginning-of-line()\n"
+"c <Key>V:                      paste-clipboard()\n"
+"c <Key>W:                      backward-kill-word()\n"
+"c <Key>BackSpace:              backward-kill-word()\n"
+"~s c <Key>Z:                   undo()\n"
+"s c <Key>Z:                    redo()\n"
+"~s c <Key>Left:                backward-word()\n"
+"~s c <Key>KP_Left:             backward-word()\n"
+"s c <Key>Left:                 backward-word(extend)\n"
+"s c <Key>KP_Left:              backward-word(extend)\n"
+"~s c <Key>Right:               forward-word()\n"
+"~s c <Key>KP_Right:            forward-word()\n"
+"s c <Key>Right:                forward-word(extend)\n"
+"s c <Key>KP_Right:             forward-word(extend)\n"
+"~s c <Key>Home:                beginning-of-file()\n"
+"~s c <Key>KP_Home:             beginning-of-file()\n"
+"s c <Key>Home:                 beginning-of-file(extend)\n"
+"s c <Key>KP_Home:              beginning-of-file(extend)\n"
+"~s c <Key>End:                 end-of-file()\n"
+"~s c <Key>KP_End:              end-of-file()\n"
+"s c <Key>End:                  end-of-file(extend)\n"
+"s c <Key>KP_End:               end-of-file(extend)\n"
+"<Key>Return:                   activate()\n"
+"<Key>KP_Enter:                 activate()\n"
+"<Btn1Down>:                    select-start()\n"
+"<Btn1Motion>:                  extend-adjust()\n"
+"<Btn1Up>:                      extend-end()\n"
+"<Btn2Down>:                    paste-primary()\n"
+"<Btn3Down>:                    extend-start()\n"
+"<Btn3Up>:                      extend-start()\n"
+"<Btn3Up>:                      extend-end()\n"
+"<Unmap>:                       unmap()\n"
+"<Enter>:                       enter-window()\n"
+"<Leave>:                       leave-window()\n"
+"<EnterWindow>:                 enter-window()\n"
+"<LeaveWindow>:                 leave-window()\n"
+"<FocusIn>:                     focus-in()\n"
+"<FocusOut>:                    focus-out()\n"
+"<Key>:                         insert-char()\n"
+;
 
 static XtActionsRec actions[] = {
 	/* text replacing bindings */
@@ -45,13 +122,22 @@ static XtResource resources[] = {
 		.default_addr    = (XtPointer)DEF_TEXT_COLUMNS,
 	},
 	{
-		.resource_name   = CtrlNfont,
-		.resource_class  = CtrlCFont,
-		.resource_type   = CtrlRFont,
-		.resource_size   = sizeof(XtPointer),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.font),
+		.resource_name   = CtrlNselbackground,
+		.resource_class  = CtrlCSelbackground,
+		.resource_type   = CtrlRPixel,
+		.resource_size   = sizeof(Pixel),
+		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.selbackground),
 		.default_type    = CtrlRString,
-		.default_addr    = (XtPointer)DEF_FONT,
+		.default_addr    = (XtPointer)DEF_SELBACKGROUND,
+	},
+	{
+		.resource_name   = CtrlNselforeground,
+		.resource_class  = CtrlCSelforeground,
+		.resource_type   = CtrlRXftColor,
+		.resource_size   = sizeof(XtPointer),
+		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.selforeground),
+		.default_type    = CtrlRString,
+		.default_addr    = (XtPointer)DEF_SELFOREGROUND,
 	},
 	{
 		.resource_name   = CtrlNactivateCallback,
@@ -162,24 +248,6 @@ static XtResource resources[] = {
 		.default_addr    = (XtPointer)"",
 	},
 	{
-		.resource_name   = CtrlNmarginHeight,
-		.resource_class  = CtrlCMarginHeight,
-		.resource_type   = CtrlRDimension,
-		.resource_size   = sizeof(Dimension),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.margin_height),
-		.default_type    = CtrlRImmediate,
-		.default_addr    = (XtPointer)DEF_TEXT_MARGIN,
-	},
-	{
-		.resource_name   = CtrlNmarginWidth,
-		.resource_class  = CtrlCMarginWidth,
-		.resource_type   = CtrlRDimension,
-		.resource_size   = sizeof(Dimension),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.margin_width),
-		.default_type    = CtrlRImmediate,
-		.default_addr    = (XtPointer)DEF_TEXT_MARGIN,
-	},
-	{
 		.resource_name   = CtrlNblinkRate,
 		.resource_class  = CtrlCBlinkRate,
 		.resource_type   = CtrlRTime,
@@ -245,7 +313,7 @@ CtrlTextFieldClassRec ctrlTextFieldClassRec = {
 		.accept_focus           = NULL,
 		.version                = XtVersion,
 		.callback_private       = NULL,
-		.tm_table               = _CtrlTextTranslations,
+		.tm_table               = translations,
 		.query_geometry         = QueryGeometry,
 		.display_accelerator    = NULL,
 		.extension              = NULL,
@@ -263,7 +331,6 @@ CtrlTextFieldClassRec ctrlTextFieldClassRec = {
 		.tooltip_unpost         = (XtWidgetProc)_XtInherit,
 		.draw                   = Draw,
 		.activate               = NULL,
-		.translations           = NULL,
 	},
 	.text_class = {
 		0 /* nothing */
@@ -276,13 +343,10 @@ static void
 Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 {
 	CtrlTextFieldWidget reqtf, newtf;
-	XtAppContext app;
 	String origvalue;
-	Dimension thickness;
 
 	(void)args;
 	(void)nargs;
-	app = XtWidgetToApplicationContext(nw);
 	reqtf = (CtrlTextFieldWidget)rw;;
 	newtf = (CtrlTextFieldWidget)nw;;
 	origvalue = newtf->text.value;
@@ -297,43 +361,32 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	newtf->text.has_primary_selection = FALSE;
 	newtf->text.has_clipboard_selection = FALSE;
 	newtf->text.has_destination_selection = FALSE;
-	newtf->text.selection_position = 0;
 	newtf->text.preedit_position = 0;
-	newtf->text.first_visible = 0;
 	newtf->text.preedit_start = 0;
 	newtf->text.preedit_end = 0;
 	newtf->text.last_time = 0;
 	newtf->text.h_offset = 0;
 	newtf->text.timer_id = 0;
 	newtf->text.text_length = strlen(origvalue);
-	newtf->text.cursor_position = newtf->text.text_length;
-	newtf->text.text_size = MAX(newtf->text.text_length, DEF_TEXT_SIZE);
+	newtf->text.selection_position = newtf->text.cursor_position = newtf->text.text_length;
+	newtf->text.text_size = MAX(newtf->text.text_length, INPUTSIZE);
 	newtf->text.value = XtMalloc(newtf->text.text_size);
-	_CtrlGetFontMetrics(
-		app,
-		newtf->text.font,
-		&newtf->text.font_average_width,
-		&newtf->text.font_ascent,
-		&newtf->text.font_descent,
-		&newtf->text.font_height
-	);
-	thickness = 2 * (newtf->primitive.highlight_thickness + newtf->primitive.shadow_thickness);
 	if (reqtf->core.width == 0)
-		newtf->core.width = thickness + 2 * newtf->text.margin_width + newtf->text.columns * newtf->text.font_average_width;
+		newtf->core.width = THICKNESS(nw) + 2 * newtf->primitive.margin_width + newtf->text.columns * newtf->primitive.font_average_width;
 	if (reqtf->core.height == 0)
-		newtf->core.height = thickness + 2 * newtf->text.margin_height + newtf->text.font_height;
+		newtf->core.height = THICKNESS(nw) + 2 * newtf->primitive.margin_height + newtf->primitive.font_height;
 	snprintf(newtf->text.value, newtf->text.text_size, "%s", origvalue);
 }
 
 static void 
 Realize(Widget w, XtValueMask *valuemask, XSetWindowAttributes *attrs)
 {
-	XtRealizeProc realize;
+	CtrlTextFieldWidget textw;
 
-	realize = ctrlTextFieldWidgetClass->core_class.superclass->core_class.realize;
-	(*realize)(w, valuemask, attrs);
-	(void)_CtrlGetInputContext(
-		XtDisplay(w), w,
+	textw = (CtrlTextFieldWidget)w;
+	(*ctrlPrimitiveWidgetClass->core_class.realize)(w, valuemask, attrs);
+	textw->text.xic = _CtrlGetInputContext(
+		w,
 		PreeditStart,
 		PreeditDone,
 		PreeditDraw,
@@ -354,16 +407,13 @@ Destroy(Widget w)
 static void
 Resize(Widget w)
 {
-	XtWidgetProc resize;
 	CtrlTextFieldWidget textw;
 	Dimension new_width, text_width;
 	Position offset, padding;
 
-	resize = ctrlTextFieldWidgetClass->core_class.superclass->core_class.resize;
-	(*resize)(w);
 	textw = (CtrlTextFieldWidget)w;
-	padding = textw->text.margin_width + textw->primitive.shadow_thickness + textw->primitive.shadow_thickness;
-	text_width = _CtrlGetTextWidth(textw->text.font, textw->text.value, textw->text.text_length);
+	padding = textw->primitive.margin_width + textw->primitive.shadow_thickness + textw->primitive.shadow_thickness;
+	text_width = _CtrlGetTextWidth(textw->primitive.font, textw->text.value, textw->text.text_length);
 	new_width = textw->core.width - 2 * padding;
 	offset = textw->text.h_offset - padding;
 	if (text_width - new_width < -offset) {
@@ -373,21 +423,20 @@ Resize(Widget w)
 		}
 	}
 	AdjustText(textw, textw->text.cursor_position);
-	Draw(w);
+	(*ctrlPrimitiveWidgetClass->core_class.resize)(w);
 }
 
 static XtGeometryResult
 QueryGeometry(Widget w, XtWidgetGeometry *intended, XtWidgetGeometry *desired)
 {
 	CtrlTextFieldWidget textw;
-	Dimension thickness, width;
+	Dimension width;
 
 	textw = (CtrlTextFieldWidget)w;
-	thickness = 2 * (textw->primitive.highlight_thickness + textw->primitive.shadow_thickness);
-	width = thickness + 2 * textw->text.margin_width + textw->text.columns * textw->text.font_average_width;
+	width = THICKNESS(w) + 2 * textw->primitive.margin_width + textw->text.columns * textw->primitive.font_average_width;
 	if (intended->request_mode & CWWidth)
 		desired->width = MAX(width, intended->width);
-	desired->height = thickness + 2 * textw->text.margin_height + textw->text.font_height;
+	desired->height = THICKNESS(w) + 2 * textw->primitive.margin_height + textw->primitive.font_height;
 	return _CtrlReplyToQueryGeometry(w, intended, desired);
 }
 
@@ -417,7 +466,81 @@ SetValues(Widget cw, Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 static void
 Draw(Widget w)
 {
+	CtrlTextFieldWidget textw;
 	XtWidgetProc draw;
+	Position minpos, maxpos, x, y;
+	Dimension width;
+
+	textw = (CtrlTextFieldWidget)w;
+	minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
+	maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
+	x = HALFTHICKNESS(w) + textw->primitive.margin_width + textw->text.h_offset;
+	y = HALFTHICKNESS(w) + textw->primitive.margin_width;
+
+	/* draw background */
+	_CtrlDrawRectangle(
+		XtDisplay(w),
+		textw->primitive.pixsave,
+		textw->core.background_pixmap,
+		textw->core.background_pixel,
+		0, 0,
+		textw->core.width,
+		textw->core.height
+	);
+
+	/* draw text before selection */
+	if (minpos > 0) {
+		width = _CtrlGetTextWidth(textw->primitive.font, textw->text.value, minpos);
+		_CtrlDrawText(
+			XtDisplay(w),
+			textw->primitive.pixsave,
+			textw->primitive.font,
+			textw->primitive.foreground,
+			x, y,
+			textw->text.value,
+			minpos
+		);
+		x += width;
+	}
+
+	/* draw selected text or pre-edited text */
+	if (textw->text.under_preedit) {
+#warning TODO: draww preediting text
+	} else if (maxpos > minpos) {
+		width = _CtrlGetTextWidth(textw->primitive.font, textw->text.value + minpos, maxpos + minpos);
+		_CtrlDrawRectangle(
+			XtDisplay(w),
+			textw->primitive.pixsave,
+			textw->text.selbackground,
+			None,
+			x, y,
+			width,
+			textw->primitive.font_height
+		);
+		_CtrlDrawText(
+			XtDisplay(w),
+			textw->primitive.pixsave,
+			textw->primitive.font,
+			textw->primitive.foreground,
+			x, y,
+			textw->text.value + minpos,
+			maxpos - minpos
+		);
+		x += width;
+	}
+
+	/* draw text after selection */
+	_CtrlDrawText(
+		XtDisplay(w),
+		textw->primitive.pixsave,
+		textw->primitive.font,
+		textw->primitive.foreground,
+		x, y,
+		textw->text.value + maxpos,
+		strlen(textw->text.value + maxpos)
+	);
+
+#warning TODO: draw I-beam
 
 	draw = ((CtrlPrimitiveWidgetClass)ctrlPrimitiveWidgetClass)->primitive_class.draw;
 	(*draw)(w);
@@ -426,11 +549,28 @@ Draw(Widget w)
 static void
 InsertChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
-	(void)w;
-	(void)ev;
+	CtrlTextFieldWidget textw;
+	Status status;
+	char buf[INPUTSIZE];
+	int len;
+
 	(void)params;
 	(void)nparams;
-	printf("ASDA\n");
+	textw = (CtrlTextFieldWidget)w;
+	status = _CtrlLookupString(XtDisplay(w), textw->text.xic, ev, buf, sizeof(buf) - 1, &len);
+	if (status != XLookupChars && status != XLookupBoth) {
+		/*
+		 * We got XLookupNone, XBufferOverflow, or XLookupKeySym.
+		 * In any case, we could not compose input characters.
+		 */
+		return;
+	}
+	if (iscntrl(*buf) || *buf == '\0') {
+		return;
+	}
+	Insert(textw, buf, len);
+#warning TODO: call callback list for insertion
+	Redraw(w);
 }
 
 static int
@@ -489,11 +629,54 @@ AdjustText(CtrlTextFieldWidget textw, Cardinal cursor_position)
 {
 	Position left, margin, diff;
 
-	margin = textw->text.margin_width + textw->primitive.shadow_thickness + textw->primitive.highlight_thickness;
-	left = _CtrlGetTextWidth(textw->text.font, textw->text.value, cursor_position) + textw->text.h_offset;
+	margin = textw->primitive.margin_width + textw->primitive.shadow_thickness + textw->primitive.highlight_thickness;
+	left = _CtrlGetTextWidth(textw->primitive.font, textw->text.value, cursor_position) + textw->text.h_offset;
 	if ((diff = left - margin) < 0) {                               /* scroll text to the right */
 		textw->text.h_offset -= diff;
 	} else if ((diff = left - textw->core.width + margin) > 0) {    /* scroll text to the left */
 		textw->text.h_offset -= diff;
 	}
+}
+
+static void
+Insert(CtrlTextFieldWidget textw, String buf, int len)
+{
+	/*
+	 * We move existing text out of the way, insert new text,
+	 * and update the cursor position and text length.  We may
+	 * reallocate textw's value.
+	 */
+	if (textw->text.text_length + len > textw->text.text_size - 1) {
+		textw->text.text_size += MAX(len, INPUTSIZE);
+		textw->text.value = XtRealloc(textw->text.value, textw->text.text_size);
+	}
+	memmove(
+		&textw->text.value[textw->text.cursor_position + len],
+		&textw->text.value[textw->text.cursor_position],
+	        textw->text.text_length - textw->text.cursor_position + 1
+	);
+	if (len > 0) {
+		memcpy(&textw->text.value[textw->text.cursor_position], buf, len);
+	}
+	textw->text.text_length += len;
+	textw->text.cursor_position += len;
+	textw->text.selection_position = textw->text.cursor_position;
+}
+
+static void
+Redraw(Widget w)
+{
+	CtrlTextFieldWidget textw;
+
+	textw = (CtrlTextFieldWidget)w;
+	Draw(w);
+	_CtrlCommitPixmap(
+		XtDisplay(w),
+		XtWindow(w),
+		textw->primitive.pixsave,
+		textw->core.x,
+		textw->core.y,
+		textw->core.width,
+		textw->core.height
+	);
 }

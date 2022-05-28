@@ -20,46 +20,59 @@
 	(to)->size = sizeof(type);                              \
 }
 
-typedef struct _CtrlFontRec {
+typedef struct CtrlFontRec {
 	Display        *dpy;
 	XftFont        *xftfont;
-} _CtrlFontRec, *_CtrlFont;
+} CtrlFontRec, *CtrlFont;
 
-struct _CtrlInputMethodRec {
+typedef struct CtrlColorRec {
+	Display        *dpy;
+	XftColor        xftcolor;
+} CtrlColorRec, *CtrlColor;
+
+struct CtrlInputMethodRec {
 	XContext        context;
 	XIM             xim;
 	XIMStyles      *styles;
 	XIMStyle        pref_style;
 };
 
-struct _CtrlInputContextRec {
-	XContext        context;
-	XIC             xic;
-	Window          focus_window;
-	unsigned long   event_mask;
-};
-
 static XContext ximcontext = 0;
 static XContext xiccontext = 0;
+
+static void
+NullProc(Widget w, XtPointer p, XEvent *ev, Boolean *b)
+{
+	(void)w;
+	(void)p;
+	(void)ev;
+	(void)b;
+	/* This function does nothing.  It's here to allow the event
+	 * mask required by the input method to be added to the client
+	 * window.
+	 */
+}
 
 static Boolean
 CvtStringToFont(Display *dpy, XrmValue *args, Cardinal *nargs, XrmValue *from, XrmValue *to, XtPointer *data)
 {
-	_CtrlFont font;
+	CtrlFont font;
 	String fontName;
 	XtAppContext app;
 	XtPointer p;
+	Boolean allocd;
 
 	(void)args;
 	(void)nargs;
 	(void)data;
+	allocd = FALSE;
 	font = NULL;
 	app = XtDisplayToApplicationContext(dpy);
 	XtAppLock(app);
 	if (from->addr == NULL)
 		goto error;
 	fontName = (String)from->addr;
-	font = (_CtrlFont)XtMalloc(sizeof(*font));
+	font = (CtrlFont)XtMalloc(sizeof(*font));
 	font->dpy = dpy;
 	if ((font->xftfont = XftFontOpenXlfd(dpy, DefaultScreen(dpy), fontName)) == NULL) {
 		if ((font->xftfont = XftFontOpenName(dpy, DefaultScreen(dpy), fontName)) == NULL) {
@@ -69,11 +82,12 @@ CvtStringToFont(Display *dpy, XrmValue *args, Cardinal *nargs, XrmValue *from, X
 	}
 	XtAppUnlock(app);
 	p = (XtPointer)font;
+	allocd = TRUE;
 	CONVERTER_DONE(to, XtPointer, p)
 	return TRUE;
 error:
 	XtAppUnlock(app);
-	if (font->xftfont != NULL)
+	if (allocd)
 		XftFontClose(dpy, font->xftfont);
 	FREE(font);
 	return FALSE;
@@ -82,15 +96,111 @@ error:
 static void
 CvtFontDestroy(XtAppContext app, XrmValue *to, XtPointer data, XrmValue *args, Cardinal *nargs)
 {
-	_CtrlFont font;
+	CtrlFont font;
 
 	(void)app;
 	(void)data;
 	(void)args;
 	(void)nargs;
-	font = *((_CtrlFont *)to->addr);
+	font = *((CtrlFont *)to->addr);
 	XftFontClose(font->dpy, font->xftfont);
 	FREE(font);
+}
+
+static Boolean
+CvtStringToColor(Display *dpy, XrmValue *args, Cardinal *nargs, XrmValue *from, XrmValue *to, XtPointer *data)
+{
+	CtrlColor color;
+	String colorName;
+	XtAppContext app;
+	XtPointer p;
+	Boolean allocd;
+
+	(void)args;
+	(void)nargs;
+	(void)data;
+	allocd = FALSE;
+	color = NULL;
+	app = XtDisplayToApplicationContext(dpy);
+	XtAppLock(app);
+	if (from->addr == NULL)
+		goto error;
+	colorName = (String)from->addr;
+	color = (CtrlColor)XtMalloc(sizeof(*color));
+	color->dpy = dpy;
+	if (!XftColorAllocName(dpy, DefaultVisual(dpy, DefaultScreen(dpy)), DefaultColormap(dpy, DefaultScreen(dpy)), colorName, &color->xftcolor)) {
+		WARN(app, "unknownValue", "could not allocate color");
+		goto error;
+	}
+	XtAppUnlock(app);
+	p = (XtPointer)color;
+	allocd = TRUE;
+	CONVERTER_DONE(to, XtPointer, p);
+	return TRUE;
+error:
+	XtAppUnlock(app);
+	if (allocd)
+		XftColorFree(dpy, DefaultVisual(dpy, DefaultScreen(dpy)), DefaultColormap(dpy, DefaultScreen(dpy)), &color->xftcolor);
+	FREE(color);
+	return FALSE;
+}
+
+static void
+CvtColorDestroy(XtAppContext app, XrmValue *to, XtPointer data, XrmValue *args, Cardinal *nargs)
+{
+	CtrlColor color;
+
+	(void)app;
+	(void)data;
+	(void)args;
+	(void)nargs;
+	color = *((CtrlColor *)to->addr);
+	XftColorFree(
+		color->dpy,
+		DefaultVisual(color->dpy, DefaultScreen(color->dpy)),
+		DefaultColormap(color->dpy, DefaultScreen(color->dpy)),
+		&color->xftcolor
+	);
+	FREE(color);
+}
+
+static struct CtrlInputMethodRec *
+CtrlGetInputMethod(Display *dpy)
+{
+	struct CtrlInputMethodRec *im;
+	XtAppContext app;
+	XIMStyle preeditstyle;
+	XIMStyle statusstyle;
+	unsigned int i;
+
+	/* get input method for display (create one if non existant) */
+	preeditstyle = XIMPreeditNothing;
+	statusstyle = XIMStatusNothing;                 /* we do not do status area (should we?) */
+	app = XtDisplayToApplicationContext(dpy);
+	XtAppLock(app);
+	if (ximcontext == 0)
+		ximcontext = XUniqueContext();
+	if (XFindContext(dpy, None, ximcontext, (XPointer *)&im) == 0)
+		goto done;
+	im = (struct CtrlInputMethodRec *)XtMalloc(sizeof(*im));
+	if ((im->xim = XOpenIM(dpy, NULL, NULL, NULL)) == NULL)
+		goto error;
+	if (XGetIMValues(im->xim, XNQueryInputStyle, &im->styles, NULL) != NULL)
+		goto error;
+	for (i = 0; i < im->styles->count_styles; i++) {
+		if (im->styles->supported_styles[i] & XIMPreeditCallbacks) {
+			preeditstyle = XIMPreeditCallbacks;
+			break;
+		}
+	}
+	im->pref_style = preeditstyle | statusstyle;
+done:
+	XtAppUnlock(app);
+	return im;
+error:
+	XtAppUnlock(app);
+	ERROR(app, "noInputMethod", "could not open input method");
+	return NULL;
 }
 
 void
@@ -106,7 +216,14 @@ _CtrlRegisterConverters(void)
 	} converters[] = {
 		{
 			CtrlRString,
-			CtrlRFont,
+			CtrlRXftColor,
+			CvtStringToColor,
+			XtCacheByDisplay | XtCacheRefCount,
+			CvtColorDestroy
+		},
+		{
+			CtrlRString,
+			CtrlRXftFont,
 			CvtStringToFont,
 			XtCacheByDisplay | XtCacheRefCount,
 			CvtFontDestroy
@@ -314,6 +431,16 @@ _CtrlDrawBottomShadow(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Positi
 }
 
 void
+_CtrlDrawText(Display *dpy, Pixmap pix, XtPointer font, XtPointer color, Position x, Position y, String text, Cardinal len)
+{
+	XftDraw *draw;
+
+	draw = XftDrawCreate(dpy, pix, DefaultVisual(dpy, DefaultScreen(dpy)), DefaultColormap(dpy, DefaultScreen(dpy)));
+	XftDrawStringUtf8(draw, &((CtrlColor)color)->xftcolor, ((CtrlFont)font)->xftfont, x, y + ((CtrlFont)font)->xftfont->ascent, text, len);
+	XftDrawDestroy(draw);
+}
+
+void
 _CtrlCommitPixmap(Display *dpy, Window win, Pixmap pix, Position x, Position y, Dimension w, Dimension h)
 {
 	XtAppContext app;
@@ -322,11 +449,11 @@ _CtrlCommitPixmap(Display *dpy, Window win, Pixmap pix, Position x, Position y, 
 	if (win == None || pix == None || w == 0 || h == 0)
 		return;
 	app = XtDisplayToApplicationContext(dpy);
-	gc = XCreateGC(dpy, win, 0, NULL);
 	XtAppLock(app);
+	gc = XCreateGC(dpy, win, 0, NULL);
 	XCopyArea(dpy, pix, win, gc, 0, 0, w, h, x, y);
-	XtAppUnlock(app);
 	XFreeGC(dpy, gc);
+	XtAppUnlock(app);
 }
 
 void
@@ -335,82 +462,45 @@ _CtrlGetFontMetrics(XtAppContext app, XtPointer font, Dimension *average_width, 
 	if (font == NULL)
 		ERROR(app, "noFont", "could not get font metrics");
 	if (average_width != NULL)
-		*average_width = ((_CtrlFont)font)->xftfont->max_advance_width;
+		*average_width = ((CtrlFont)font)->xftfont->max_advance_width;
 	if (ascent != NULL)
-		*ascent        = ((_CtrlFont)font)->xftfont->ascent;
+		*ascent        = ((CtrlFont)font)->xftfont->ascent;
 	if (descent != NULL)
-		*descent       = ((_CtrlFont)font)->xftfont->descent;
+		*descent       = ((CtrlFont)font)->xftfont->descent;
 	if (height != NULL)
-		*height        = ((_CtrlFont)font)->xftfont->height;
+		*height        = ((CtrlFont)font)->xftfont->height;
 }
 
-int
+Dimension
 _CtrlGetTextWidth(XtPointer font, String text, Cardinal len)
 {
 	XGlyphInfo box;
 
-	XftTextExtentsUtf8(((_CtrlFont)font)->dpy, ((_CtrlFont)font)->xftfont, text, len, &box);
-	return box.xOff;
+	XftTextExtentsUtf8(((CtrlFont)font)->dpy, ((CtrlFont)font)->xftfont, text, len, &box);
+	return box.width;
 }
 
-struct _CtrlInputMethodRec *
-_CtrlGetInputMethod(Display *dpy)
+XIC
+_CtrlGetInputContext(Widget w, XICProc startp, XICProc donep, XICProc drawp, XICProc caretp, XICProc destroyp)
 {
-	struct _CtrlInputMethodRec *im;
-	XtAppContext app;
-	XIMStyle preeditstyle;
-	XIMStyle statusstyle;
-	unsigned int i;
-
-	/* get input method for display (create one if non existant) */
-	preeditstyle = XIMPreeditNothing;
-	statusstyle = XIMStatusNothing;                 /* we do not do status area (should we?) */
-	app = XtDisplayToApplicationContext(dpy);
-	XtAppLock(app);
-	if (ximcontext == 0)
-		ximcontext = XUniqueContext();
-	if (XFindContext(dpy, None, ximcontext, (XPointer *)&im) == 0)
-		goto done;
-	im = (struct _CtrlInputMethodRec *)XtMalloc(sizeof(*im));
-	im->context = ximcontext;
-	if ((im->xim = XOpenIM(dpy, NULL, NULL, NULL)) == NULL)
-		goto error;
-	if (XGetIMValues(im->xim, XNQueryInputStyle, &im->styles, NULL) != NULL)
-		goto error;
-	for (i = 0; i < im->styles->count_styles; i++) {
-		if (im->styles->supported_styles[i] & XIMPreeditCallbacks) {
-			preeditstyle = XIMPreeditCallbacks;
-			break;
-		}
-	}
-	im->pref_style = preeditstyle | statusstyle;
-done:
-	XtAppUnlock(app);
-	return im;
-error:
-	XtAppUnlock(app);
-	ERROR(app, "noInputMethod", "could not open input method");
-	return NULL;
-}
-
-struct _CtrlInputContextRec *
-_CtrlGetInputContext(Display *dpy, Widget w, XICProc startp, XICProc donep, XICProc drawp, XICProc caretp, XICProc destroyp)
-{
-	struct _CtrlInputMethodRec *im;
-	struct _CtrlInputContextRec *ic;
+	struct CtrlInputMethodRec *im;
+	Display *dpy;
 	XtAppContext app;
 	XVaNestedList preedit;
 	Window win;
+	XIC xic;
+	XtValueMask mask;
 
 	/* get input context for window (create one if non existant) */
+	dpy = XtDisplay(w);
 	preedit = NULL;
 	app = XtDisplayToApplicationContext(dpy);
 	win = XtWindow(w);
-	im = _CtrlGetInputMethod(dpy);
+	im = CtrlGetInputMethod(dpy);
 	XtAppLock(app);
 	if (xiccontext == 0)
 		xiccontext = XUniqueContext();
-	if (XFindContext(dpy, win, xiccontext, (XPointer *)&ic) == 0)
+	if (XFindContext(dpy, win, xiccontext, (XPointer *)&xic) == 0)
 		goto done;
 	preedit = XVaCreateNestedList(
 		0,
@@ -434,10 +524,7 @@ _CtrlGetInputContext(Display *dpy, Widget w, XICProc startp, XICProc donep, XICP
 	);
 	if (preedit == NULL)
 		goto error;
-	ic = (struct _CtrlInputContextRec *)XtMalloc(sizeof(*ic));
-	ic->context = xiccontext;
-	ic->focus_window = win;
-	ic->xic = XCreateIC(
+	xic = XCreateIC(
 		im->xim,
 		XNInputStyle,           im->pref_style,
 		XNPreeditAttributes,    preedit,
@@ -449,14 +536,16 @@ _CtrlGetInputContext(Display *dpy, Widget w, XICProc startp, XICProc donep, XICP
 		/* we need not set XNFocusWindow for it defaults to XNClientWindow */
 		NULL
 	);
-	if (ic->xic == NULL)
+	if (xic == NULL)
 		goto error;
-	if (XGetICValues(ic->xic, XNFilterEvents, &ic->event_mask, NULL) != NULL)
+	if (XGetICValues(xic, XNFilterEvents, &mask, NULL) != NULL)
 		goto error;
+	if (mask)
+		XtAddEventHandler(w, mask, False, NullProc, NULL);
 done:
 	XFree(preedit);
 	XtAppUnlock(app);
-	return ic;
+	return xic;
 error:
 	XFree(preedit);
 	XtAppUnlock(app);
@@ -482,6 +571,20 @@ _CtrlReplyToQueryGeometry(Widget w, XtWidgetGeometry *intended, XtWidgetGeometry
 	ret = (desired->width == w->core.width && desired->height == w->core.height)
 	    ? XtGeometryNo
 	    : XtGeometryAlmost;
+	XtAppUnlock(app);
+	return ret;
+}
+
+Status
+_CtrlLookupString(Display *dpy, XIC xic, XEvent *ev, String buf, int size, int *len)
+{
+	XtAppContext app;
+	Status ret;
+	;
+
+	app = XtDisplayToApplicationContext(dpy);
+	XtAppLock(app);
+	*len = XmbLookupString(xic, (XKeyEvent *)ev, buf, size, NULL, &ret);
 	XtAppUnlock(app);
 	return ret;
 }
