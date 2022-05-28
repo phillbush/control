@@ -31,6 +31,8 @@ static void DeletePrevChar(Widget, XEvent *, String *, Cardinal *);
 static void DeleteNextChar(Widget, XEvent *, String *, Cardinal *);
 static void DeleteToBeginning(Widget, XEvent *, String *, Cardinal *);
 static void DeleteToEnd(Widget, XEvent *, String *, Cardinal *);
+static void DeleteWordBackwards(Widget, XEvent *, String *, Cardinal *);
+static void DeleteWordForwards(Widget, XEvent *, String *, Cardinal *);
 
 /* preedit callback functions */
 static int PreeditStart(XIC, XPointer, XPointer);
@@ -122,6 +124,8 @@ static XtActionsRec actions[] = {
 	{"delete-next-character",       DeleteNextChar},
 	{"kill-to-beginning-of-line",   DeleteToBeginning},
 	{"kill-to-end-of-line",         DeleteToEnd},
+	{"backward-kill-word",          DeleteWordBackwards},
+	{"forward-kill-word",           DeleteWordForwards},
 };
 
 static XtResource resources[] = {
@@ -681,11 +685,11 @@ DeletePrevChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
 #warning TODO: Call modify_verify_callback
-	if (!DeleteSelection(w)) {
-		if (textw->text.cursor_position > 0) {
-			Insert(textw, NULL, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1) - textw->text.cursor_position);
-		}
-	}
+	if (DeleteSelection(w))
+		goto done;
+	if (textw->text.cursor_position > 0)
+		Insert(textw, NULL, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1) - textw->text.cursor_position);
+done:
 	AdjustText(textw, textw->text.cursor_position);
 	Redraw(w);
 }
@@ -700,14 +704,13 @@ DeleteNextChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
 #warning TODO: Call modify_verify_callback
-	if (!DeleteSelection(w)) {
-		if (textw->text.value[textw->text.cursor_position] != '\0') {
-			textw->text.cursor_position = _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1);
-		}
-		if (textw->text.cursor_position > 0) {
-			Insert(textw, NULL, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1) - textw->text.cursor_position);
-		}
-	}
+	if (DeleteSelection(w))
+		goto done;
+	if (textw->text.value[textw->text.cursor_position] != '\0')
+		textw->text.cursor_position = _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1);
+	if (textw->text.cursor_position > 0)
+		Insert(textw, NULL, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1) - textw->text.cursor_position);
+done:
 	AdjustText(textw, textw->text.cursor_position);
 	Redraw(w);
 }
@@ -722,8 +725,10 @@ DeleteToBeginning(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
 #warning TODO: Call modify_verify_callback
-	if (!DeleteSelection(w))
-		Insert(textw, NULL, 0 - textw->text.cursor_position);
+	if (DeleteSelection(w))
+		goto done;
+	Insert(textw, NULL, 0 - textw->text.cursor_position);
+done:
 	AdjustText(textw, textw->text.cursor_position);
 	Redraw(w);
 }
@@ -738,8 +743,62 @@ DeleteToEnd(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
 #warning TODO: Call modify_verify_callback
-	if (!DeleteSelection(w))
-		textw->text.value[textw->text.cursor_position] = '\0';
+	if (DeleteSelection(w))
+		goto done;
+	textw->text.value[textw->text.cursor_position] = '\0';
+done:
+	AdjustText(textw, textw->text.cursor_position);
+	Redraw(w);
+}
+
+static void
+DeleteWordBackwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+	Position pos;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+#warning TODO: Call modify_verify_callback
+	if (DeleteSelection(w))
+		goto done;
+	while (textw->text.cursor_position > 0 && isspace((unsigned char)textw->text.value[(pos = _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1))]))
+		Insert(textw, NULL, pos - textw->text.cursor_position);
+	while (textw->text.cursor_position > 0 && !isspace((unsigned char)textw->text.value[(pos = _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1))]))
+		Insert(textw, NULL, pos - textw->text.cursor_position);
+done:
+	AdjustText(textw, textw->text.cursor_position);
+	Redraw(w);
+}
+
+static void
+DeleteWordForwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+	Position pos, tmp;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+#warning TODO: Call modify_verify_callback
+	if (DeleteSelection(w))
+		goto done;
+	while (textw->text.value[textw->text.cursor_position] != '\0' && !isspace((unsigned char)textw->text.value[(pos = _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1))])) {
+		tmp = pos;
+		pos = textw->text.cursor_position;
+		textw->text.cursor_position = tmp;
+		Insert(textw, NULL, pos - textw->text.cursor_position);
+	}
+	while (textw->text.value[textw->text.cursor_position] != '\0' && isspace((unsigned char)textw->text.value[(pos = _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1))])) {
+		tmp = pos;
+		pos = textw->text.cursor_position;
+		textw->text.cursor_position = tmp;
+		Insert(textw, NULL, pos - textw->text.cursor_position);
+	}
+done:
 	AdjustText(textw, textw->text.cursor_position);
 	Redraw(w);
 }
