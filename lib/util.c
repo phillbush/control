@@ -308,8 +308,29 @@ _CtrlDrawRectangle(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Position 
 	gc = XCreateGC(dpy, pix, valuemask, &gcvalues);
 	XtAppLock(app);
 	XFillRectangle(dpy, pix, gc, x, y, w, h);
-	XtAppUnlock(app);
 	XFreeGC(dpy, gc);
+	XtAppUnlock(app);
+}
+
+void
+_CtrlDrawXftRectangle(Display *dpy, Pixmap pix, XtPointer color, Position x, Position y, Dimension w, Dimension h)
+{
+	XGCValues gcvalues;
+	XtAppContext app;
+	GC gc;
+	unsigned long valuemask;
+
+	if (pix == None || w == 0 || h == 0)
+		return;
+	app = XtDisplayToApplicationContext(dpy);
+	gcvalues.fill_style = FillSolid;
+	gcvalues.foreground = ((CtrlColor)color)->xftcolor.pixel;
+	valuemask = GCFillStyle | GCForeground;
+	gc = XCreateGC(dpy, pix, valuemask, &gcvalues);
+	XtAppLock(app);
+	XFillRectangle(dpy, pix, gc, x, y, w, h);
+	XFreeGC(dpy, gc);
+	XtAppUnlock(app);
 }
 
 void
@@ -477,7 +498,7 @@ _CtrlGetTextWidth(XtPointer font, String text, Cardinal len)
 	XGlyphInfo box;
 
 	XftTextExtentsUtf8(((CtrlFont)font)->dpy, ((CtrlFont)font)->xftfont, text, len, &box);
-	return box.width;
+	return box.xOff;
 }
 
 XIC
@@ -587,4 +608,15 @@ _CtrlLookupString(Display *dpy, XIC xic, XEvent *ev, String buf, int size, int *
 	*len = XmbLookupString(xic, (XKeyEvent *)ev, buf, size, NULL, &ret);
 	XtAppUnlock(app);
 	return ret;
+}
+
+/* return location of next utf8 rune in the given direction (+1 or -1) */
+Position
+_CtrlNextRune(String text, Position position, int inc)
+{
+	Position n;
+
+	for (n = position + inc; n + inc >= 0 && (text[n] & 0xc0) == 0x80; n += inc)
+		;
+	return n;
 }

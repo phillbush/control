@@ -297,6 +297,18 @@
 #define CtrlExtdefaultforeground        XtExtdefaultforeground
 #define CtrlEyes                        XtEyes
 
+/* Callback Reasons */
+enum {
+	CTRL_NONE,
+	CTRL_VALUE_CHANGED,
+};
+
+/* Callback Structures */
+typedef struct {
+	int     reason;
+	XEvent *event;
+} CtrlGenericCallData;
+
 /* widget class types */
 typedef struct _CtrlPrimitiveClassRec  *CtrlPrimitiveWidgetClass;
 typedef struct _CtrlTextFieldClassRec  *CtrlTextFieldWidgetClass;

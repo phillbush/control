@@ -99,6 +99,7 @@ typedef struct {
 	Position                cursor_position;        /* position of the insertion cursor and one selection extremity */
 	Position                selection_position;     /* position of the other selection extremity */
 	Position                preedit_position;       /* position of input cursor while compositing */
+	Position                caret_position;
 	Position                preedit_start;
 	Position                preedit_end;
 	Dimension               select_threshold;

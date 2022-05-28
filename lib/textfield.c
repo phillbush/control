@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -22,6 +23,14 @@ static void Draw(Widget);
 
 /* actions */
 static void InsertChar(Widget, XEvent *, String *, Cardinal *);
+static void BeginningOfLine(Widget, XEvent *, String *, Cardinal *);
+static void EndOfLine(Widget, XEvent *, String *, Cardinal *);
+static void BackwardCharacter(Widget, XEvent *, String *, Cardinal *);
+static void ForwardCharacter(Widget, XEvent *, String *, Cardinal *);
+static void DeletePrevChar(Widget, XEvent *, String *, Cardinal *);
+static void DeleteNextChar(Widget, XEvent *, String *, Cardinal *);
+static void DeleteToBeginning(Widget, XEvent *, String *, Cardinal *);
+static void DeleteToEnd(Widget, XEvent *, String *, Cardinal *);
 
 /* preedit callback functions */
 static int PreeditStart(XIC, XPointer, XPointer);
@@ -33,7 +42,9 @@ static int PreeditDestroy(XIC, XPointer, XPointer);
 /* helper widget-internal functions */
 static void AdjustText(CtrlTextFieldWidget, Cardinal);
 static void Insert(CtrlTextFieldWidget, String, int);
+static void SetCursor(Widget, Position, Boolean);
 static void Redraw(Widget);
+static Boolean DeleteSelection(Widget);
 
 char translations[] =
 "~s c <Key>A:                   beginning-of-line()\n"
@@ -50,6 +61,7 @@ char translations[] =
 "s ~c <Key>KP_Left:             backward-character(extend)\n"
 "c <Key>C:                      copy-clipboard()\n"
 "c <Key>D:                      delete-next-character()\n"
+"~c <Key>Delete:                delete-next-character()\n"
 "~s c <Key>E:                   end-of-line()\n"
 "~s ~c <Key>End:                end-of-line()\n"
 "~s ~c <Key>KP_End:             end-of-line()\n"
@@ -69,6 +81,7 @@ char translations[] =
 "c <Key>V:                      paste-clipboard()\n"
 "c <Key>W:                      backward-kill-word()\n"
 "c <Key>BackSpace:              backward-kill-word()\n"
+"c <Key>Delete:                 forward-kill-word()\n"
 "~s c <Key>Z:                   undo()\n"
 "s c <Key>Z:                    redo()\n"
 "~s c <Key>Left:                backward-word()\n"
@@ -79,14 +92,6 @@ char translations[] =
 "~s c <Key>KP_Right:            forward-word()\n"
 "s c <Key>Right:                forward-word(extend)\n"
 "s c <Key>KP_Right:             forward-word(extend)\n"
-"~s c <Key>Home:                beginning-of-file()\n"
-"~s c <Key>KP_Home:             beginning-of-file()\n"
-"s c <Key>Home:                 beginning-of-file(extend)\n"
-"s c <Key>KP_Home:              beginning-of-file(extend)\n"
-"~s c <Key>End:                 end-of-file()\n"
-"~s c <Key>KP_End:              end-of-file()\n"
-"s c <Key>End:                  end-of-file(extend)\n"
-"s c <Key>KP_End:               end-of-file(extend)\n"
 "<Key>Return:                   activate()\n"
 "<Key>KP_Enter:                 activate()\n"
 "<Btn1Down>:                    select-start()\n"
@@ -96,19 +101,27 @@ char translations[] =
 "<Btn3Down>:                    extend-start()\n"
 "<Btn3Up>:                      extend-start()\n"
 "<Btn3Up>:                      extend-end()\n"
-"<Unmap>:                       unmap()\n"
-"<Enter>:                       enter-window()\n"
-"<Leave>:                       leave-window()\n"
-"<EnterWindow>:                 enter-window()\n"
-"<LeaveWindow>:                 leave-window()\n"
-"<FocusIn>:                     focus-in()\n"
-"<FocusOut>:                    focus-out()\n"
+//"<Unmap>:                       unmap()\n"
+//"<Enter>:                       enter-window()\n"
+//"<Leave>:                       leave-window()\n"
+//"<EnterWindow>:                 enter-window()\n"
+//"<LeaveWindow>:                 leave-window()\n"
+//"<FocusIn>:                     focus-in()\n"
+//"<FocusOut>:                    focus-out()\n"
 "<Key>:                         insert-char()\n"
 ;
 
 static XtActionsRec actions[] = {
 	/* text replacing bindings */
 	{"insert-char",                 InsertChar},
+	{"beginning-of-line",           BeginningOfLine},
+	{"end-of-line",                 EndOfLine},
+	{"backward-character",          BackwardCharacter},
+	{"forward-character",           ForwardCharacter},
+	{"delete-previous-character",   DeletePrevChar},
+	{"delete-next-character",       DeleteNextChar},
+	{"kill-to-beginning-of-line",   DeleteToBeginning},
+	{"kill-to-end-of-line",         DeleteToEnd},
 };
 
 static XtResource resources[] = {
@@ -361,6 +374,7 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	newtf->text.has_primary_selection = FALSE;
 	newtf->text.has_clipboard_selection = FALSE;
 	newtf->text.has_destination_selection = FALSE;
+	newtf->text.caret_position = 0;
 	newtf->text.preedit_position = 0;
 	newtf->text.preedit_start = 0;
 	newtf->text.preedit_end = 0;
@@ -469,13 +483,14 @@ Draw(Widget w)
 	CtrlTextFieldWidget textw;
 	XtWidgetProc draw;
 	Position minpos, maxpos, x, y;
-	Dimension width;
+	Dimension width, widthpre;
 
 	textw = (CtrlTextFieldWidget)w;
 	minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
 	maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
 	x = HALFTHICKNESS(w) + textw->primitive.margin_width + textw->text.h_offset;
 	y = HALFTHICKNESS(w) + textw->primitive.margin_width;
+	widthpre = 0;
 
 	/* draw background */
 	_CtrlDrawRectangle(
@@ -501,18 +516,19 @@ Draw(Widget w)
 			minpos
 		);
 		x += width;
+		widthpre = width;
 	}
 
 	/* draw selected text or pre-edited text */
 	if (textw->text.under_preedit) {
 #warning TODO: draww preediting text
 	} else if (maxpos > minpos) {
-		width = _CtrlGetTextWidth(textw->primitive.font, textw->text.value + minpos, maxpos + minpos);
+		width = _CtrlGetTextWidth(textw->primitive.font, textw->text.value + minpos, maxpos - minpos);
 		_CtrlDrawRectangle(
 			XtDisplay(w),
 			textw->primitive.pixsave,
-			textw->text.selbackground,
 			None,
+			textw->text.selbackground,
 			x, y,
 			width,
 			textw->primitive.font_height
@@ -540,7 +556,22 @@ Draw(Widget w)
 		strlen(textw->text.value + maxpos)
 	);
 
-#warning TODO: draw I-beam
+	/* draw I-beam (cursor line) */
+	if (textw->text.cursor_position == textw->text.selection_position) {
+		if (textw->text.under_preedit && textw->text.caret_position > 0) {
+#warning TODO: get width of preedit text until caret
+		} else {
+			width = 0;
+		}
+		_CtrlDrawXftRectangle(
+			XtDisplay(w),
+			textw->primitive.pixsave,
+			textw->text.selforeground,
+			HALFTHICKNESS(w) + textw->primitive.margin_width + textw->text.h_offset + widthpre + width,
+			y, 1,
+			textw->primitive.font_height
+		);
+	}
 
 	draw = ((CtrlPrimitiveWidgetClass)ctrlPrimitiveWidgetClass)->primitive_class.draw;
 	(*draw)(w);
@@ -550,6 +581,7 @@ static void
 InsertChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
+	CtrlGenericCallData cd;
 	Status status;
 	char buf[INPUTSIZE];
 	int len;
@@ -568,8 +600,147 @@ InsertChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	if (iscntrl(*buf) || *buf == '\0') {
 		return;
 	}
+#warning TODO: Call modify_verify_callback
+	DeleteSelection(w);
 	Insert(textw, buf, len);
-#warning TODO: call callback list for insertion
+	cd = (CtrlGenericCallData){
+		.reason = CTRL_VALUE_CHANGED,
+		.event = ev,
+	};
+	AdjustText(textw, textw->text.cursor_position);
+	XtCallCallbackList(w, textw->text.value_changed_callback, (XtPointer)&cd);
+	Redraw(w);
+}
+
+static void
+BeginningOfLine(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	SetCursor(w, 0, *nparams > 0);
+	AdjustText(textw, textw->text.cursor_position);
+	Redraw(w);
+}
+
+static void
+EndOfLine(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.value[textw->text.cursor_position] != '\0')
+		SetCursor(w, textw->text.text_length, *nparams > 0);
+	AdjustText(textw, textw->text.cursor_position);
+	Redraw(w);
+}
+
+static void
+BackwardCharacter(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.cursor_position > 0)
+		SetCursor(w, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1), *nparams > 0);
+	AdjustText(textw, textw->text.cursor_position);
+	Redraw(w);
+}
+
+static void
+ForwardCharacter(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.value[textw->text.cursor_position] != '\0')
+		SetCursor(w, _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1), *nparams > 0);
+	AdjustText(textw, textw->text.cursor_position);
+	Redraw(w);
+}
+
+static void
+DeletePrevChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+#warning TODO: Call modify_verify_callback
+	if (!DeleteSelection(w)) {
+		if (textw->text.cursor_position > 0) {
+			Insert(textw, NULL, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1) - textw->text.cursor_position);
+		}
+	}
+	AdjustText(textw, textw->text.cursor_position);
+	Redraw(w);
+}
+
+static void
+DeleteNextChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+#warning TODO: Call modify_verify_callback
+	if (!DeleteSelection(w)) {
+		if (textw->text.value[textw->text.cursor_position] != '\0') {
+			textw->text.cursor_position = _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1);
+		}
+		if (textw->text.cursor_position > 0) {
+			Insert(textw, NULL, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1) - textw->text.cursor_position);
+		}
+	}
+	AdjustText(textw, textw->text.cursor_position);
+	Redraw(w);
+}
+
+static void
+DeleteToBeginning(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+#warning TODO: Call modify_verify_callback
+	if (!DeleteSelection(w))
+		Insert(textw, NULL, 0 - textw->text.cursor_position);
+	AdjustText(textw, textw->text.cursor_position);
+	Redraw(w);
+}
+
+static void
+DeleteToEnd(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+#warning TODO: Call modify_verify_callback
+	if (!DeleteSelection(w))
+		textw->text.value[textw->text.cursor_position] = '\0';
+	AdjustText(textw, textw->text.cursor_position);
 	Redraw(w);
 }
 
@@ -630,7 +801,7 @@ AdjustText(CtrlTextFieldWidget textw, Cardinal cursor_position)
 	Position left, margin, diff;
 
 	margin = textw->primitive.margin_width + textw->primitive.shadow_thickness + textw->primitive.highlight_thickness;
-	left = _CtrlGetTextWidth(textw->primitive.font, textw->text.value, cursor_position) + textw->text.h_offset;
+	left = _CtrlGetTextWidth(textw->primitive.font, textw->text.value, cursor_position) + textw->text.h_offset + textw->primitive.font_average_width;
 	if ((diff = left - margin) < 0) {                               /* scroll text to the right */
 		textw->text.h_offset -= diff;
 	} else if ((diff = left - textw->core.width + margin) > 0) {    /* scroll text to the left */
@@ -664,6 +835,21 @@ Insert(CtrlTextFieldWidget textw, String buf, int len)
 }
 
 static void
+SetCursor(Widget w, Position pos, Boolean select)
+{
+	CtrlTextFieldWidget textw;
+
+	textw = (CtrlTextFieldWidget)w;
+#warning TODO: Call motion_verify_callback
+	textw->text.cursor_position = pos;
+	if (select) {
+#warning TODO: Primary selection
+	} else {
+		textw->text.selection_position = textw->text.cursor_position;
+	}
+}
+
+static void
 Redraw(Widget w)
 {
 	CtrlTextFieldWidget textw;
@@ -679,4 +865,20 @@ Redraw(Widget w)
 		textw->core.width,
 		textw->core.height
 	);
+}
+
+static Boolean
+DeleteSelection(Widget w)
+{
+	CtrlTextFieldWidget textw;
+	Position minpos, maxpos;
+
+	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.selection_position == textw->text.cursor_position)
+		return FALSE;
+	minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
+	maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
+	memmove(textw->text.value + minpos, textw->text.value + maxpos, textw->text.text_length - maxpos + 1);
+	textw->text.cursor_position = textw->text.selection_position = minpos;
+	return TRUE;
 }
