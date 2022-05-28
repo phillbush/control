@@ -1,0 +1,155 @@
+.Dd May 28, 2022
+.Dt CONTROL 3
+.Os
+.Sh NAME
+.Nm control
+.Nd X11 Widget Toolkit
+.Sh SYNOPSIS
+.In control.h
+.Ft typedef void
+.Fo (*XtCallbackProc)
+.Fa "Widget widget"
+.Fa "XtPointer closure"
+.Fa "XtPointer call_data"
+.Fc
+.Vt WidgetClass ctrlPrimitiveWidgetClass
+.Vt WidgetClass ctrlTextFieldWidgetClass
+.Sh DESCRIPTION
+.Nm
+is a widget set based on the X Toolkit Intrinsics (Xt) Library.
+The Xt library provides an object-oriented framework for creating reusable user-interface components called widgets.
+.Nm
+provides widgets for common user-interface elements such as buttons and text input fields.
+.Pp
+Each widget is configurable using X resources.
+Some resources are hardcoded by the application programmer,
+others may be set by the user.
+For example, the background color of most widget can be set by a resource named
+.Ql "background"
+which belongs to the
+.Ql "Background"
+class of resources.
+Note that resource names are in
+.Em camelCase
+(beginning in lower case);
+while resource classes are in
+.Em PascalCase
+(beginning in upper case).
+The application programmer should avoid referring to resources by their string literals.
+The
+.Nm
+header file defines constants for all the known resource names and classes.
+Using the constants is preferrable because the compiler will fail when using a non-existant resource name or class
+(by using string literals, the application programmer is not warned, and the compilation will not fail).
+For example, the
+.Ql CtrlNbackground
+constant evaluates to the background name string at compiling time; while the
+.Ql CtrlCBackground
+constant evaluates to the background class string.
+Note that resource name constants begin with
+.Ql CtrlN
+followed by the camelCase name string;
+and resource class constants begin with
+.Ql CtrlC
+followed by the PascalCase name string.
+.Pp
+A special class of resources, the
+.Ql CtrlCCallback
+class,
+is particuarly important for the application programmer.
+A callback resource registers a list of functions, called
+.Em callback functions Ns ,
+to be invoked when the user performs the action associated with the callback resource on the widget of that resource.
+A callback function can be registerd along with a pointer to an object to be passed to the function when it be called.
+For example, a button widget provides the
+.Ql CtrlNactivateCallback
+for when the user pushes the button.
+A callback function must be typed as
+.Ql XtCallbackProc
+(defined in the
+.Sx SYNOPSIS Ns ).
+A callback function is called with the widget that called it as the first argument,
+a pointer to the object supplied while registering the callback function as second argument,
+and a pointer to an object called
+.Em call data
+as third argument.
+The actual type of the call data depends on the callback resource and are described below in the
+.Sx CALLBACKS
+section.
+Call data objects are always a structure,
+with the first field being an
+.Ql int
+describing the reason for the callback function to be called,
+and the second field being a pointer to the
+.Ql XEvent
+object that caused the callback invocation.
+.Pp
+Not every interaction event with a widget results in a callback to an application function.
+Widgets may handle events themselves, by calling internal functions called
+.Em actions Ns .
+For example, a text input field widget has the action
+.Ql delete-previous-character
+to backspace an inputted character;
+the application does not have to provide such function.
+Actions are mapped to events in a
+.Em translation table Ns .
+This table can be changed by the application code or by the user.
+For example, the
+.Ql delete-previous-character
+action is mapped to the
+.Ql <Ctrl-H>
+and
+.Ql <Backspace>
+key presses.
+.Pp
+A widget can be instantiated using the
+.Xr XtCreateWidget 3 ,
+.Xr XtVaCreateWidget 3 ,
+.Xr XtCreateManagedWidget 3 ,
+and
+.Xr XtVaCreateManagedWidget 3
+functions from the Xt library.
+The headers for the Xt library need not be included by the application programmer
+(they are already included in the
+.Nm
+header).
+Refer to the Xt documentation for more information on the Xt framework used by
+.Nm .
+.Pp
+Only global variables for class objects were listed in the
+.Sx SYNOPSIS
+section.
+In particular,
+the names of resources,
+the constant values for the reason of a callback invocation,
+and the data types for the call data of callback functions
+are introduced through the next sections.
+.Nm
+does not provide any library function.
+.Sh CLASSES
+TODO.
+.Sh RESOURCES
+TODO.
+.Sh CALLBACKS
+TODO.
+.Sh TRANSLATIONS
+TODO.
+.Sh ACTIONS
+TODO.
+.Sh EXAMPLES
+.Bd -literal
+/* TODO */
+.Ed
+.Sh SEE ALSO
+.Xr X 1
+.Rs
+.%B Xlib - C Language X Interface
+.Re
+.Rs
+.%B X Toolkit Intrinsics - C Language Interface
+.Re
+.Sh AUTHORS
+The
+.Nm
+X11 Widget Toolkit was written by
+.An Lucas de Sena Aq Mt lucas@seninha.org .

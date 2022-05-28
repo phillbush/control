@@ -42,7 +42,7 @@ static int PreeditCaret(XIC, XPointer, XPointer);
 static int PreeditDestroy(XIC, XPointer, XPointer);
 
 /* helper widget-internal functions */
-static void AdjustText(CtrlTextFieldWidget, Cardinal);
+static void AdjustText(Widget, Cardinal);
 static void Insert(CtrlTextFieldWidget, String, int);
 static void SetCursor(Widget, Position, Boolean);
 static void Redraw(Widget);
@@ -440,7 +440,7 @@ Resize(Widget w)
 			textw->text.h_offset += new_width - text_width;
 		}
 	}
-	AdjustText(textw, textw->text.cursor_position);
+	AdjustText(w, textw->text.cursor_position);
 	(*ctrlPrimitiveWidgetClass->core_class.resize)(w);
 }
 
@@ -611,7 +611,6 @@ InsertChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 		.reason = CTRL_VALUE_CHANGED,
 		.event = ev,
 	};
-	AdjustText(textw, textw->text.cursor_position);
 	XtCallCallbackList(w, textw->text.value_changed_callback, (XtPointer)&cd);
 	Redraw(w);
 }
@@ -626,8 +625,6 @@ BeginningOfLine(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
 	SetCursor(w, 0, *nparams > 0);
-	AdjustText(textw, textw->text.cursor_position);
-	Redraw(w);
 }
 
 static void
@@ -639,10 +636,9 @@ EndOfLine(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-	if (textw->text.value[textw->text.cursor_position] != '\0')
+	if (textw->text.value[textw->text.cursor_position] != '\0') {
 		SetCursor(w, textw->text.text_length, *nparams > 0);
-	AdjustText(textw, textw->text.cursor_position);
-	Redraw(w);
+	}
 }
 
 static void
@@ -654,10 +650,9 @@ BackwardCharacter(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-	if (textw->text.cursor_position > 0)
+	if (textw->text.cursor_position > 0) {
 		SetCursor(w, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1), *nparams > 0);
-	AdjustText(textw, textw->text.cursor_position);
-	Redraw(w);
+	}
 }
 
 static void
@@ -669,10 +664,9 @@ ForwardCharacter(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-	if (textw->text.value[textw->text.cursor_position] != '\0')
+	if (textw->text.value[textw->text.cursor_position] != '\0') {
 		SetCursor(w, _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1), *nparams > 0);
-	AdjustText(textw, textw->text.cursor_position);
-	Redraw(w);
+	}
 }
 
 static void
@@ -690,7 +684,6 @@ DeletePrevChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	if (textw->text.cursor_position > 0)
 		Insert(textw, NULL, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1) - textw->text.cursor_position);
 done:
-	AdjustText(textw, textw->text.cursor_position);
 	Redraw(w);
 }
 
@@ -711,7 +704,6 @@ DeleteNextChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	if (textw->text.cursor_position > 0)
 		Insert(textw, NULL, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1) - textw->text.cursor_position);
 done:
-	AdjustText(textw, textw->text.cursor_position);
 	Redraw(w);
 }
 
@@ -729,7 +721,6 @@ DeleteToBeginning(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 		goto done;
 	Insert(textw, NULL, 0 - textw->text.cursor_position);
 done:
-	AdjustText(textw, textw->text.cursor_position);
 	Redraw(w);
 }
 
@@ -747,7 +738,6 @@ DeleteToEnd(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 		goto done;
 	textw->text.value[textw->text.cursor_position] = '\0';
 done:
-	AdjustText(textw, textw->text.cursor_position);
 	Redraw(w);
 }
 
@@ -769,7 +759,6 @@ DeleteWordBackwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	while (textw->text.cursor_position > 0 && !isspace((unsigned char)textw->text.value[(pos = _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1))]))
 		Insert(textw, NULL, pos - textw->text.cursor_position);
 done:
-	AdjustText(textw, textw->text.cursor_position);
 	Redraw(w);
 }
 
@@ -799,7 +788,6 @@ DeleteWordForwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 		Insert(textw, NULL, pos - textw->text.cursor_position);
 	}
 done:
-	AdjustText(textw, textw->text.cursor_position);
 	Redraw(w);
 }
 
@@ -855,10 +843,12 @@ PreeditDestroy(XIC xic, XPointer client_data, XPointer call_data)
 
 /* update textw->text.h_offset for character at cursor_position to be visible */
 static void
-AdjustText(CtrlTextFieldWidget textw, Cardinal cursor_position)
+AdjustText(Widget w, Cardinal cursor_position)
 {
+	CtrlTextFieldWidget textw;
 	Position left, margin, diff;
 
+	textw = (CtrlTextFieldWidget)w;
 	margin = textw->primitive.margin_width + textw->primitive.shadow_thickness + textw->primitive.highlight_thickness;
 	left = _CtrlGetTextWidth(textw->primitive.font, textw->text.value, cursor_position) + textw->text.h_offset + textw->primitive.font_average_width;
 	if ((diff = left - margin) < 0) {                               /* scroll text to the right */
@@ -906,6 +896,7 @@ SetCursor(Widget w, Position pos, Boolean select)
 	} else {
 		textw->text.selection_position = textw->text.cursor_position;
 	}
+	Redraw(w);
 }
 
 static void
@@ -914,6 +905,7 @@ Redraw(Widget w)
 	CtrlTextFieldWidget textw;
 
 	textw = (CtrlTextFieldWidget)w;
+	AdjustText(w, textw->text.cursor_position);
 	Draw(w);
 	_CtrlCommitPixmap(
 		XtDisplay(w),
