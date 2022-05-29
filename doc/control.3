@@ -322,11 +322,11 @@ typedef struct {
 	XEvent         *event;
 } CtrlGenericCallData;
 .Ed
-.Bl -tag
-.It Va int reason
+.Bl -tag -width Ds
+.It Va reason
 Indicates why the callback was invoked.
 See the description of each callback resource for information on the possible values.
-.It Va XEvent *event
+.It Va event
 Points to the XEvent that triggered the callback.
 It can be
 .Ql NULL

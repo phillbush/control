@@ -23,7 +23,6 @@ OBJS = ${OBJS_LIB} ${OBJS_DEMO}
 INCS = lib/common.h include/control.h include/control_private.h
 SRCS = ${OBJS:.o=.c} ${INCS}
 
-doc: README.md
 all: lib
 lib: ${LIBS}
 demos: ${DEMOS}
@@ -33,9 +32,6 @@ ${OBJS_DEMO}: ${OBJS_LIB}
 
 tags: ${SRCS}
 	ctags ${SRCS}
-
-README.md: doc/control.3
-	mandoc -T markdown doc/control.3 >README.md
 
 lib/libcontrol.a: ${OBJS_LIB}
 	${AR} rc $@ ${OBJS_LIB}
@@ -51,14 +47,14 @@ lib/libcontrol.so: ${OBJS_LIB}
 	${CC} ${XCFLAGS} ${CFLAGS} ${CPPFLAGS} -o $@ -c $<
 
 clean:
-	rm -f ${LIBS} ${DEMOS} ${OBJS} tags README.md
+	rm -f ${LIBS} ${DEMOS} ${OBJS} tags
 
-gitadd: README.md
-	git add Makefile README.md doc/control.3 ${SRCS}
+gitadd:
+	git add Makefile README doc/control.3 ${SRCS}
 
 gitpush:
 	# only do this once:
 	# git remote add origin git@github.com:phillbush/control.git
 	git push -u origin master
 
-.PHONY: all lib demos tags clean doc gitadd gitpush
+.PHONY: all lib demos tags clean gitadd gitpush
