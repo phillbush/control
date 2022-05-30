@@ -362,6 +362,35 @@ TODO.
 .Rs
 .%B X Toolkit Intrinsics - C Language Interface
 .Re
+.Sh HISTORY
+.Pp
+At first, the TextField was supposed to have callback resources for
+input modification and movement filtering and validation.
+For example, if a TextField widget should only receive uppercase letters,
+an input modification callback function would be called for every typed in piece of text,
+and the widget would either negate this piece of text (if it were a digit, for example),
+or would convert this piece of text to an upper case letter (if it were a lower case letter),
+or would accept the typed in text (if it were already an uppercase letter).
+This filtering and validation mechanism would work, for example,
+to create input fields for date, time, email, IPs, registration codes, etc.
+But, for simplicity sake
+(and because of the fact that the editing mechanism (such as copy-and-paste) usually gets irresponsive
+when an input filtering and validation mechanism is active),
+I decided to get rid of such callback resources.
+They may be re-added in a later version.
+.Sh TODO
+.Bl -bullet -compact
+.It
+Draw blinking I-beam (aka text cursor) in TextField widget, depending on whether it has focus.
+.It
+Handle overstrike (Insert mode).
+.It
+Handle mouse events in TextField.
+.It
+Write functions for all actions in TextField.
+.It
+Remove the #warnings directives.
+.El
 .Sh AUTHORS
 The
 .Nm

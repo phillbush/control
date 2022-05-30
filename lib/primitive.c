@@ -405,6 +405,7 @@ SetValues(Widget cw, Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 			XUndefineCursor(XtDisplay(nw), XtWindow(nw));
 		}
 	}
+#warning TODO: update font
 #warning TODO: update keyboard traversals
 	if (old->primitive.shadow_thickness != new->primitive.shadow_thickness ||
 	    old->primitive.shadow_light_pixel != new->primitive.shadow_light_pixel ||

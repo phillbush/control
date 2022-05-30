@@ -76,21 +76,14 @@ typedef struct {
 } CtrlPrimitivePart;
 
 typedef struct {
+	/* resources */
 	XtCallbackList          activate_callback;
-	XtCallbackList          destination_callback;
-	XtCallbackList          focus_callback;
-	XtCallbackList          losing_focus_callback;
-	XtCallbackList          gain_primary_callback;
-	XtCallbackList          lose_primary_callback;
-	XtCallbackList          gain_clipboard_callback;
-	XtCallbackList          lose_clipboard_callback;
 	XtCallbackList          value_changed_callback;
 	XtPointer               selforeground;
 	Pixel                   selbackground;
 	String                  value;
 	String                  preedit_value;
 	Time                    last_time;              /* time of last selection event */
-	Time                    blink_rate;             /* rate of blinking text cursor in msec */
 	int                     text_size;              /* size of allocated value string */
 	int                     text_length;            /* used size of value string */
 	int                     preedit_size;
@@ -101,15 +94,13 @@ typedef struct {
 	int                     selection_position;     /* position of the other selection extremity */
 	int                     caret_position;
 	Dimension               select_threshold;
-	Boolean                 blink_on;
 	Boolean                 has_focus;
-	Boolean                 has_primary_selection;
-	Boolean                 has_clipboard_selection;
-	Boolean                 has_destination_selection;
 	Boolean                 selection_move;
 	Boolean                 overstrike;
 	Boolean                 under_preedit;
 	XtIntervalId            timer_id;
+
+	/* internal */
 	XIC                     xic;
 } CtrlTextFieldPart;
 

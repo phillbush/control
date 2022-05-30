@@ -1,5 +1,17 @@
+#include <X11/Xatom.h>
 #include <X11/Xutil.h>
 #include <X11/Xft/Xft.h>
+
+/* sizes */
+#define ATOM_SIZE               32
+#define UTF8_SIZE               8
+
+/* selections */
+#define CLIPBOARD               "CLIPBOARD"
+#define UTF8_STRING             "UTF8_STRING"
+#define CLIPBOARD               "CLIPBOARD"
+#define TARGETS                 "TARGETS"
+#define WM_DELETE_WINDOW        "WM_DELETE_WINDOW"
 
 /* util macros */
 #define MAX(x,y) ((x)>(y)?(x):(y))
@@ -23,6 +35,7 @@
 #define DEF_HIGHLIGHT_COLOR     "#C5C8C6"
 
 /* routines from util.c */
+void _CtrlOwnSelection(Widget, XtConvertSelectionProc, Atom, Time);
 void _CtrlRegisterConverters(void);
 void _CtrlNewPixmap(Display *, Pixmap *, Window, Dimension, Dimension, Cardinal);
 void _CtrlDrawRectangle(Display *, Pixmap, Pixmap, Pixel, int, int, Dimension, Dimension);
@@ -41,3 +54,4 @@ int _CtrlNextRune(String, int, int);
 int _CtrlRuneBytes(String, int);
 int _CtrlRuneChars(String, int);
 int _CtrlMoveWordEdge(String, int, int);
+Atom _CtrlInternAtom(Display *, String);

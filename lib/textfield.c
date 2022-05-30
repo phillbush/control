@@ -22,6 +22,7 @@ static XtGeometryResult QueryGeometry(Widget, XtWidgetGeometry *, XtWidgetGeomet
 static void Draw(Widget);
 
 /* actions */
+static void SelectAll(Widget, XEvent *, String *, Cardinal *);
 static void InsertChar(Widget, XEvent *, String *, Cardinal *);
 static void BeginningOfLine(Widget, XEvent *, String *, Cardinal *);
 static void EndOfLine(Widget, XEvent *, String *, Cardinal *);
@@ -41,15 +42,17 @@ static int PreeditDraw(XIC, XPointer, XPointer);
 static int PreeditCaret(XIC, XPointer, XPointer);
 static int PreeditDestroy(XIC, XPointer, XPointer);
 
-/* helper widget-internal functions */
+/* helper internal functions */
+static void ValueChanged(Widget, XEvent *);
 static void AdjustText(Widget);
 static void Insert(CtrlTextFieldWidget, String, int);
-static void SetCursor(Widget, int, Boolean);
+static void SetCursor(Widget, Time, int, Boolean, Boolean);
 static void Redraw(Widget);
 static Boolean DeleteSelection(Widget);
+static Boolean Copy(Widget, Atom *, Atom *, Atom *, XtPointer *, unsigned long *, int *);
 
 char translations[] =
-"~s c <Key>A:                   beginning-of-line()\n"
+"~s c <Key>A:                   select-all()\n"
 "~s ~c <Key>Home:               beginning-of-line()\n"
 "~s ~c <Key>KP_Home:            beginning-of-line()\n"
 "s c <Key>A:                    beginning-of-line(extend)\n"
@@ -115,6 +118,7 @@ char translations[] =
 
 static XtActionsRec actions[] = {
 	/* text replacing bindings */
+	{"select-all",                  SelectAll},
 	{"insert-char",                 InsertChar},
 	{"beginning-of-line",           BeginningOfLine},
 	{"end-of-line",                 EndOfLine},
@@ -166,69 +170,6 @@ static XtResource resources[] = {
 		.default_addr    = (XtPointer)NULL,
 	},
 	{
-		.resource_name   = CtrlNdestinationCallback,
-		.resource_class  = CtrlCCallback,
-		.resource_type   = CtrlRCallback,
-		.resource_size   = sizeof(XtCallbackList),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.destination_callback),
-		.default_type    = CtrlRCallback,
-		.default_addr    = (XtPointer)NULL,
-	},
-	{
-		.resource_name   = CtrlNfocusCallback,
-		.resource_class  = CtrlCCallback,
-		.resource_type   = CtrlRCallback,
-		.resource_size   = sizeof(XtCallbackList),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.focus_callback),
-		.default_type    = CtrlRCallback,
-		.default_addr    = (XtPointer)NULL,
-	},
-	{
-		.resource_name   = CtrlNlosingFocusCallback,
-		.resource_class  = CtrlCCallback,
-		.resource_type   = CtrlRCallback,
-		.resource_size   = sizeof(XtCallbackList),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.losing_focus_callback),
-		.default_type    = CtrlRCallback,
-		.default_addr    = (XtPointer)NULL,
-	},
-	{
-		.resource_name   = CtrlNgainPrimaryCallback,
-		.resource_class  = CtrlCCallback,
-		.resource_type   = CtrlRCallback,
-		.resource_size   = sizeof(XtCallbackList),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.gain_primary_callback),
-		.default_type    = CtrlRCallback,
-		.default_addr    = (XtPointer)NULL,
-	},
-	{
-		.resource_name   = CtrlNlosePrimaryCallback,
-		.resource_class  = CtrlCCallback,
-		.resource_type   = CtrlRCallback,
-		.resource_size   = sizeof(XtCallbackList),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.lose_primary_callback),
-		.default_type    = CtrlRCallback,
-		.default_addr    = (XtPointer)NULL,
-	},
-	{
-		.resource_name   = CtrlNgainClipboardCallback,
-		.resource_class  = CtrlCCallback,
-		.resource_type   = CtrlRCallback,
-		.resource_size   = sizeof(XtCallbackList),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.gain_clipboard_callback),
-		.default_type    = CtrlRCallback,
-		.default_addr    = (XtPointer)NULL,
-	},
-	{
-		.resource_name   = CtrlNloseClipboardCallback,
-		.resource_class  = CtrlCCallback,
-		.resource_type   = CtrlRCallback,
-		.resource_size   = sizeof(XtCallbackList),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.lose_clipboard_callback),
-		.default_type    = CtrlRCallback,
-		.default_addr    = (XtPointer)NULL,
-	},
-	{
 		.resource_name   = CtrlNvalueChangedCallback,
 		.resource_class  = CtrlCCallback,
 		.resource_type   = CtrlRCallback,
@@ -245,15 +186,6 @@ static XtResource resources[] = {
 		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.value),
 		.default_type    = CtrlRString,
 		.default_addr    = (XtPointer)"",
-	},
-	{
-		.resource_name   = CtrlNblinkRate,
-		.resource_class  = CtrlCBlinkRate,
-		.resource_type   = CtrlRTime,
-		.resource_size   = sizeof(Time),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.blink_rate),
-		.default_type    = CtrlRImmediate,
-		.default_addr    = (XtPointer)DEF_BLINK_RATE,
 	},
 	{
 		.resource_name   = CtrlNselectThreshold,
@@ -352,14 +284,8 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	newtf->primitive.focusable = TRUE;
 	newtf->primitive.pressed = TRUE;
 	newtf->primitive.is3d = TRUE;
-	newtf->text.blink_on = TRUE;
-	newtf->text.has_focus = FALSE;
 	newtf->text.overstrike = FALSE;
 	newtf->text.under_preedit = FALSE;
-	newtf->text.selection_move = FALSE;
-	newtf->text.has_primary_selection = FALSE;
-	newtf->text.has_clipboard_selection = FALSE;
-	newtf->text.has_destination_selection = FALSE;
 	newtf->text.caret_position = 0;
 	newtf->text.last_time = 0;
 	newtf->text.h_offset = 0;
@@ -443,24 +369,50 @@ QueryGeometry(Widget w, XtWidgetGeometry *intended, XtWidgetGeometry *desired)
 static Boolean
 SetValues(Widget cw, Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 {
-	CtrlTextFieldWidget oldw, neww;
-	Boolean redisplay;
+	CtrlTextFieldWidget oldtf, newtf;
+	Boolean redraw;
+	Dimension width, height;
 
 	(void)rw;
 	(void)args;
 	(void)nargs;
-	redisplay = FALSE;
-	oldw = (CtrlTextFieldWidget)cw;
-	neww = (CtrlTextFieldWidget)nw;
+	redraw = FALSE;
+	oldtf = (CtrlTextFieldWidget)cw;
+	newtf = (CtrlTextFieldWidget)nw;
 
-	if (neww->core.being_destroyed)
+	if (newtf->core.being_destroyed)
 		return FALSE;
-#warning TODO: write SetValues
-	if (neww->core.width == 0)
-		neww->core.width = oldw->core.width;
-	if (neww->core.height == 0)
-		neww->core.height = oldw->core.height;
-	return redisplay;
+	if (newtf->text.value != oldtf->text.value) {
+		/* We select everything and then insert the new value */
+		newtf->text.selection_position = 0;
+		newtf->text.cursor_position = newtf->text.text_length;
+		Insert(newtf, oldtf->text.value, strlen(oldtf->text.value));
+		FREE(oldtf->text.value);
+		ValueChanged(nw, NULL);
+		redraw = TRUE;
+	}
+	if (newtf->text.selforeground != oldtf->text.selforeground ||
+	    newtf->text.selbackground != oldtf->text.selbackground) {
+		redraw = TRUE;
+	}
+	if (newtf->text.columns != oldtf->text.columns && oldtf->text.columns > 0) {
+		newtf->text.columns = oldtf->text.columns;
+	}
+	width = THICKNESS(nw) + 2 * newtf->primitive.margin_width + newtf->text.columns * newtf->primitive.font_average_width;
+	height = THICKNESS(nw) + 2 * newtf->primitive.margin_height + newtf->primitive.font_height;
+	if (newtf->core.width != width) {
+		newtf->core.width = width;
+		redraw = TRUE;
+	}
+	if (newtf->core.height != height) {
+		newtf->core.height = height;
+		redraw = TRUE;
+	}
+	if (redraw) {
+		AdjustText(nw);
+		Draw(nw);
+	}
+	return redraw;
 }
 
 static void
@@ -583,10 +535,21 @@ Draw(Widget w)
 }
 
 static void
+SelectAll(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	textw->text.selection_position = 0;
+	SetCursor(w, ev->xkey.time, textw->text.text_length, TRUE, TRUE);
+}
+
+static void
 InsertChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
-	CtrlGenericCallData cd;
 	Status status;
 	char buf[INPUTSIZE];
 	int len;
@@ -607,21 +570,15 @@ InsertChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	}
 	DeleteSelection(w);
 	Insert(textw, buf, len);
-	cd = (CtrlGenericCallData){
-		.reason = CTRL_VALUE_CHANGED,
-		.event = ev,
-	};
-	XtCallCallbackList(w, textw->text.value_changed_callback, (XtPointer)&cd);
+	ValueChanged(w, ev);
 	Redraw(w);
 }
 
 static void
 BeginningOfLine(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
-	(void)ev;
 	(void)params;
-	(void)nparams;
-	SetCursor(w, 0, *nparams > 0);
+	SetCursor(w, ev->xkey.time, 0, *nparams > 0, TRUE);
 }
 
 static void
@@ -629,13 +586,9 @@ EndOfLine(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
 
-	(void)ev;
 	(void)params;
-	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-	if (textw->text.value[textw->text.cursor_position] != '\0') {
-		SetCursor(w, textw->text.text_length, *nparams > 0);
-	}
+	SetCursor(w, ev->xkey.time, textw->text.text_length, *nparams > 0, TRUE);
 }
 
 static void
@@ -643,13 +596,9 @@ BackwardCharacter(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
 
-	(void)ev;
 	(void)params;
-	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-	if (textw->text.cursor_position > 0) {
-		SetCursor(w, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1), *nparams > 0);
-	}
+	SetCursor(w, ev->xkey.time, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1), *nparams > 0, TRUE);
 }
 
 static void
@@ -657,13 +606,9 @@ ForwardCharacter(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
 
-	(void)ev;
 	(void)params;
-	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-	if (textw->text.value[textw->text.cursor_position] != '\0') {
-		SetCursor(w, _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1), *nparams > 0);
-	}
+	SetCursor(w, ev->xkey.time, _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1), *nparams > 0, TRUE);
 }
 
 static void
@@ -671,7 +616,6 @@ DeletePrevChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
 
-	(void)ev;
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
@@ -681,6 +625,7 @@ DeletePrevChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 		Insert(textw, NULL, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1) - textw->text.cursor_position);
 done:
 	Redraw(w);
+	ValueChanged(w, ev);
 }
 
 static void
@@ -688,7 +633,6 @@ DeleteNextChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
 
-	(void)ev;
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
@@ -700,6 +644,7 @@ DeleteNextChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 		Insert(textw, NULL, _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1) - textw->text.cursor_position);
 done:
 	Redraw(w);
+	ValueChanged(w, ev);
 }
 
 static void
@@ -707,7 +652,6 @@ DeleteToBeginning(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
 
-	(void)ev;
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
@@ -716,6 +660,7 @@ DeleteToBeginning(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	Insert(textw, NULL, 0 - textw->text.cursor_position);
 done:
 	Redraw(w);
+	ValueChanged(w, ev);
 }
 
 static void
@@ -723,7 +668,6 @@ DeleteToEnd(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
 
-	(void)ev;
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
@@ -732,6 +676,7 @@ DeleteToEnd(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	textw->text.value[textw->text.cursor_position] = '\0';
 done:
 	Redraw(w);
+	ValueChanged(w, ev);
 }
 
 static void
@@ -740,7 +685,6 @@ DeleteWordBackwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	CtrlTextFieldWidget textw;
 	int pos;
 
-	(void)ev;
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
@@ -752,6 +696,7 @@ DeleteWordBackwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 		Insert(textw, NULL, pos - textw->text.cursor_position);
 done:
 	Redraw(w);
+	ValueChanged(w, ev);
 }
 
 static void
@@ -760,7 +705,6 @@ DeleteWordForwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	CtrlTextFieldWidget textw;
 	int pos, tmp;
 
-	(void)ev;
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
@@ -780,6 +724,7 @@ DeleteWordForwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	}
 done:
 	Redraw(w);
+	ValueChanged(w, ev);
 }
 
 static int
@@ -923,6 +868,20 @@ PreeditDestroy(XIC xic, XPointer client_data, XPointer call_data)
 }
 
 static void
+ValueChanged(Widget w, XEvent *ev)
+{
+	CtrlGenericCallData cd;
+	CtrlTextFieldWidget textw;
+	textw = (CtrlTextFieldWidget)w;
+
+	cd = (CtrlGenericCallData){
+		.reason = CTRL_VALUE_CHANGED,
+		.event = ev,
+	};
+	XtCallCallbackList(w, textw->text.value_changed_callback, (XtPointer)&cd);
+}
+
+static void
 AdjustText(Widget w)
 {
 	CtrlTextFieldWidget textw;
@@ -967,18 +926,22 @@ Insert(CtrlTextFieldWidget textw, String buf, int len)
 }
 
 static void
-SetCursor(Widget w, int pos, Boolean select)
+SetCursor(Widget w, Time time, int pos, Boolean select, Boolean redraw)
 {
 	CtrlTextFieldWidget textw;
 
 	textw = (CtrlTextFieldWidget)w;
+	if (pos < 0 || pos > textw->text.text_length)
+		return;
 	textw->text.cursor_position = pos;
 	if (select) {
-#warning TODO: Primary selection
+		_CtrlOwnSelection(w, Copy, XA_PRIMARY, time);
 	} else {
 		textw->text.selection_position = textw->text.cursor_position;
 	}
-	Redraw(w);
+	if (redraw) {
+		Redraw(w);
+	}
 }
 
 static void
@@ -1014,4 +977,51 @@ DeleteSelection(Widget w)
 	memmove(textw->text.value + minpos, textw->text.value + maxpos, textw->text.text_length - maxpos + 1);
 	textw->text.cursor_position = textw->text.selection_position = minpos;
 	return TRUE;
+}
+
+static Boolean
+Copy(Widget w, Atom *sel, Atom *target, Atom *type, XtPointer *val, unsigned long *len, int *fmt)
+{
+	CtrlTextFieldWidget textw;
+	int minpos, maxpos;
+
+	/*
+	 * We allocate memory into the *val argument.
+	 * We need not free it, for the Xt framework automatically frees it
+	 * when the selection conversion is done (because _CtrlOwnSelection
+	 * in util.c does not inform a XtSelectionDoneProc process).
+	 */
+	(void)sel;
+	if (*target == _CtrlInternAtom(XtDisplay(w), TARGETS)) {
+		/*
+		 * We have been asked for supported target formats.
+		 * Answer with the only one we know (UTF8_STRING).
+		 */
+		*type = XA_ATOM;
+		*len = 1;
+		*fmt = ATOM_SIZE;
+		*val = XtMalloc(sizeof(Atom));
+		(*((Atom *)*val)) = _CtrlInternAtom(XtDisplay(w), UTF8_STRING);
+		return TRUE;
+	} else if (*target == _CtrlInternAtom(XtDisplay(w), UTF8_STRING) || *target == XA_STRING) {
+		/*
+		 * The last comment is false.
+		 * We also support the old, generic XA_STRING target.
+		 * But we'll send a UTF8 string in either case.
+		 */
+		textw = (CtrlTextFieldWidget)w;
+		minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
+		maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
+		*type = *target;
+		*len = maxpos - minpos + 1;
+		*fmt = UTF8_SIZE;
+		*val = (XtPointer)strndup(textw->text.value + minpos, *len);
+		((char *)*val)[*len - 1] = '\0';
+		return TRUE;
+	}
+	/*
+	 * If we reach here, we don't know what to do (we have been
+	 * asked to convert our selection to a format we do not know).
+	 */
+	return FALSE;
 }

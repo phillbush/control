@@ -202,6 +202,43 @@ error:
 	return NULL;
 }
 
+static void
+DisownCallback(Widget w, XtPointer call_data, XtPointer client_data)
+{
+	XtAppContext app;
+	Time time;
+
+	(void)call_data;
+	app = XtWidgetToApplicationContext(w);
+	XtAppLock(app);
+	time = XtLastTimestampProcessed(XtDisplay(w));
+	XtDisownSelection(w, (Atom)client_data, time);
+	XtAppUnlock(app);
+}
+
+static void
+LoseSelection(Widget w, Atom *sel)
+{
+	XtAppContext app;
+
+	app = XtWidgetToApplicationContext(w);
+	XtAppLock(app);
+	XtRemoveCallback(w, CtrlNdestroyCallback, DisownCallback, (XtPointer)*sel);
+	XtAppUnlock(app);
+}
+
+void
+_CtrlOwnSelection(Widget w, XtConvertSelectionProc cvt, Atom sel, Time time)
+{
+	XtAppContext app;
+
+	app = XtWidgetToApplicationContext(w);
+	XtAppLock(app);
+	XtOwnSelection(w, sel, time, cvt, LoseSelection, NULL);
+	XtAddCallback(w, CtrlNdestroyCallback, DisownCallback, (XtPointer)sel);
+	XtAppUnlock(app);
+}
+
 void
 _CtrlRegisterConverters(void)
 {
@@ -662,4 +699,17 @@ _CtrlMoveWordEdge(String text, int pos, int dir)
 			pos = _CtrlNextRune(text, pos, +1);
 	}
 	return pos;
+}
+
+Atom
+_CtrlInternAtom(Display *dpy, String name)
+{
+	XtAppContext app;
+	Atom sel;
+
+	app = XtDisplayToApplicationContext(dpy);
+	XtAppLock(app);
+	sel = XInternAtom(dpy, name, FALSE);
+	XtAppUnlock(app);
+	return sel;
 }
