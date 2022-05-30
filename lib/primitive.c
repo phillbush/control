@@ -37,8 +37,8 @@ static XtResource resources[] = {
 		.default_addr    = (XtPointer)DEF_FOREGROUND,
 	},
 	{
-		.resource_name   = CtrlNfont,
-		.resource_class  = CtrlCFont,
+		.resource_name   = CtrlNfaceName,
+		.resource_class  = CtrlCFaceName,
 		.resource_type   = CtrlRXftFont,
 		.resource_size   = sizeof(XtPointer),
 		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.font),

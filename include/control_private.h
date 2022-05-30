@@ -88,18 +88,18 @@ typedef struct {
 	XtPointer               selforeground;
 	Pixel                   selbackground;
 	String                  value;
+	String                  preedit_value;
 	Time                    last_time;              /* time of last selection event */
 	Time                    blink_rate;             /* rate of blinking text cursor in msec */
-	Position                text_size;              /* size of allocated value string */
-	Position                text_length;            /* used size of value string */
-	Position                columns;                /* number of character columns in the text input field */
-	Position                h_offset;
-	Position                cursor_position;        /* position of the insertion cursor and one selection extremity */
-	Position                selection_position;     /* position of the other selection extremity */
-	Position                preedit_position;       /* position of input cursor while compositing */
-	Position                caret_position;
-	Position                preedit_start;
-	Position                preedit_end;
+	int                     text_size;              /* size of allocated value string */
+	int                     text_length;            /* used size of value string */
+	int                     preedit_size;
+	int                     preedit_length;
+	int                     columns;                /* number of character columns in the text input field */
+	int                     h_offset;
+	int                     cursor_position;        /* position of the insertion cursor and one selection extremity */
+	int                     selection_position;     /* position of the other selection extremity */
+	int                     caret_position;
 	Dimension               select_threshold;
 	Boolean                 blink_on;
 	Boolean                 has_focus;

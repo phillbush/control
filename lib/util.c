@@ -1,10 +1,9 @@
+#include <ctype.h>
+
 #include <control_private.h>
 
 #include "common.h"
 
-#define FREE(p) XtFree((char *)(p))
-#define WARN(app, name, msg)  XtAppWarningMsg((app), (name), __func__, "ToolkitError", (msg), NULL, 0)
-#define ERROR(app, name, msg) XtAppErrorMsg((app), (name), __func__, "ToolkitError", (msg), NULL, 0)
 #define CONVERTER_DONE(to, type, value)                         \
 {                                                               \
 	if ((to)->addr != NULL) {                               \
@@ -286,7 +285,7 @@ _CtrlNewPixmap(Display *dpy, Pixmap *pix, Window win, Dimension w, Dimension h, 
 }
 
 void
-_CtrlDrawRectangle(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Position x, Position y, Dimension w, Dimension h)
+_CtrlDrawRectangle(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, int x, int y, Dimension w, Dimension h)
 {
 	XGCValues gcvalues;
 	XtAppContext app;
@@ -313,7 +312,7 @@ _CtrlDrawRectangle(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Position 
 }
 
 void
-_CtrlDrawXftRectangle(Display *dpy, Pixmap pix, XtPointer color, Position x, Position y, Dimension w, Dimension h)
+_CtrlDrawXftRectangle(Display *dpy, Pixmap pix, XtPointer color, int x, int y, Dimension w, Dimension h)
 {
 	XGCValues gcvalues;
 	XtAppContext app;
@@ -334,7 +333,7 @@ _CtrlDrawXftRectangle(Display *dpy, Pixmap pix, XtPointer color, Position x, Pos
 }
 
 void
-_CtrlDrawHighlight(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Position x, Position y, Dimension w, Dimension h, Dimension b)
+_CtrlDrawHighlight(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, int x, int y, Dimension w, Dimension h, Dimension b)
 {
 	XRectangle rects[4];
 	XGCValues gcvalues;
@@ -370,7 +369,7 @@ _CtrlDrawHighlight(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Position 
 }
 
 void
-_CtrlDrawTopShadow(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Position x, Position y, Dimension w, Dimension h, Dimension bi, Dimension bo)
+_CtrlDrawTopShadow(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, int x, int y, Dimension w, Dimension h, Dimension bi, Dimension bo)
 {
 	XRectangle *rects;
 	XGCValues gcvalues;
@@ -411,7 +410,7 @@ _CtrlDrawTopShadow(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Position 
 }
 
 void
-_CtrlDrawBottomShadow(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Position x, Position y, Dimension w, Dimension h, Dimension bi, Dimension bo)
+_CtrlDrawBottomShadow(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, int x, int y, Dimension w, Dimension h, Dimension bi, Dimension bo)
 {
 	XRectangle *rects;
 	XGCValues gcvalues;
@@ -452,7 +451,7 @@ _CtrlDrawBottomShadow(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, Positi
 }
 
 void
-_CtrlDrawText(Display *dpy, Pixmap pix, XtPointer font, XtPointer color, Position x, Position y, String text, Cardinal len)
+_CtrlDrawText(Display *dpy, Pixmap pix, XtPointer font, XtPointer color, int x, int y, String text, Cardinal len)
 {
 	XftDraw *draw;
 
@@ -462,7 +461,7 @@ _CtrlDrawText(Display *dpy, Pixmap pix, XtPointer font, XtPointer color, Positio
 }
 
 void
-_CtrlCommitPixmap(Display *dpy, Window win, Pixmap pix, Position x, Position y, Dimension w, Dimension h)
+_CtrlCommitPixmap(Display *dpy, Window win, Pixmap pix, int x, int y, Dimension w, Dimension h)
 {
 	XtAppContext app;
 	GC gc;
@@ -611,12 +610,56 @@ _CtrlLookupString(Display *dpy, XIC xic, XEvent *ev, String buf, int size, int *
 }
 
 /* return location of next utf8 rune in the given direction (+1 or -1) */
-Position
-_CtrlNextRune(String text, Position position, int inc)
+int
+_CtrlNextRune(String text, int position, int inc)
 {
-	Position n;
+	int n;
 
 	for (n = position + inc; n + inc >= 0 && (text[n] & 0xc0) == 0x80; n += inc)
 		;
 	return n;
+}
+
+/* return bytes from beginning of text to nth utf8 rune to the right */
+int
+_CtrlRuneBytes(String text, int n)
+{
+	int ret;
+
+	ret = 0;
+	while (n-- > 0)
+		ret += _CtrlNextRune(text + ret, 0, 1);
+	return ret;
+}
+
+/* return number of characters from beginning of text to nth byte to the right */
+int
+_CtrlRuneChars(String text, int n)
+{
+	int ret, i;
+
+	ret = i = 0;
+	while (i < n) {
+		i += _CtrlNextRune(text + i, 0, 1);
+		ret++;
+	}
+	return ret;
+}
+
+/* return position to start (dir = -1) or end (dir = +1) of the word */
+int
+_CtrlMoveWordEdge(String text, int pos, int dir)
+{
+	if (dir < 0) {
+		while (pos > 0 && isspace((unsigned char)text[_CtrlNextRune(text, pos, -1)]))
+			pos = _CtrlNextRune(text, pos, -1);
+		while (pos > 0 && !isspace((unsigned char)text[_CtrlNextRune(text, pos, -1)]))
+			pos = _CtrlNextRune(text, pos, -1);
+	} else {
+		while (text[pos] && isspace((unsigned char)text[pos]))
+			pos = _CtrlNextRune(text, pos, +1);
+		while (text[pos] && !isspace((unsigned char)text[pos]))
+			pos = _CtrlNextRune(text, pos, +1);
+	}
+	return pos;
 }

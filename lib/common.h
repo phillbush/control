@@ -4,6 +4,9 @@
 /* util macros */
 #define MAX(x,y) ((x)>(y)?(x):(y))
 #define MIN(x,y) ((x)<(y)?(x):(y))
+#define FREE(p) XtFree((char *)(p))
+#define WARN(app, name, msg)  XtAppWarningMsg((app), (name), __func__, "ToolkitError", (msg), NULL, 0)
+#define ERROR(app, name, msg) XtAppErrorMsg((app), (name), __func__, "ToolkitError", (msg), NULL, 0)
 
 /* resource default values */
 #define DEF_THICKNESS           2
@@ -22,16 +25,19 @@
 /* routines from util.c */
 void _CtrlRegisterConverters(void);
 void _CtrlNewPixmap(Display *, Pixmap *, Window, Dimension, Dimension, Cardinal);
-void _CtrlDrawRectangle(Display *, Pixmap, Pixmap, Pixel, Position, Position, Dimension, Dimension);
-void _CtrlDrawXftRectangle(Display *, Pixmap, XtPointer, Position, Position, Dimension, Dimension);
-void _CtrlDrawHighlight(Display *, Pixmap, Pixmap, Pixel, Position, Position, Dimension, Dimension, Dimension);
-void _CtrlDrawTopShadow(Display *, Pixmap, Pixmap, Pixel, Position, Position, Dimension, Dimension, Dimension, Dimension);
-void _CtrlDrawBottomShadow(Display *, Pixmap, Pixmap, Pixel, Position, Position, Dimension, Dimension, Dimension, Dimension);
-void _CtrlDrawText(Display *, Pixmap, XtPointer, XtPointer, Position, Position, String, Cardinal);
-void _CtrlCommitPixmap(Display *, Window, Pixmap, Position, Position, Dimension, Dimension);
+void _CtrlDrawRectangle(Display *, Pixmap, Pixmap, Pixel, int, int, Dimension, Dimension);
+void _CtrlDrawXftRectangle(Display *, Pixmap, XtPointer, int, int, Dimension, Dimension);
+void _CtrlDrawHighlight(Display *, Pixmap, Pixmap, Pixel, int, int, Dimension, Dimension, Dimension);
+void _CtrlDrawTopShadow(Display *, Pixmap, Pixmap, Pixel, int, int, Dimension, Dimension, Dimension, Dimension);
+void _CtrlDrawBottomShadow(Display *, Pixmap, Pixmap, Pixel, int, int, Dimension, Dimension, Dimension, Dimension);
+void _CtrlDrawText(Display *, Pixmap, XtPointer, XtPointer, int, int, String, Cardinal);
+void _CtrlCommitPixmap(Display *, Window, Pixmap, int, int, Dimension, Dimension);
 void _CtrlGetFontMetrics(XtAppContext, XtPointer, Dimension *, Dimension *, Dimension *, Dimension *);
 Dimension _CtrlGetTextWidth(XtPointer, String, Cardinal);
 XIC _CtrlGetInputContext(Widget, XICProc, XICProc, XICProc, XICProc, XICProc);
 XtGeometryResult _CtrlReplyToQueryGeometry(Widget, XtWidgetGeometry *, XtWidgetGeometry *);
 Status _CtrlLookupString(Display *, XIC, XEvent *, String, int, int *);
-Position _CtrlNextRune(String text, Position position, int inc);
+int _CtrlNextRune(String, int, int);
+int _CtrlRuneBytes(String, int);
+int _CtrlRuneChars(String, int);
+int _CtrlMoveWordEdge(String, int, int);

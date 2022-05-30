@@ -42,9 +42,9 @@ static int PreeditCaret(XIC, XPointer, XPointer);
 static int PreeditDestroy(XIC, XPointer, XPointer);
 
 /* helper widget-internal functions */
-static void AdjustText(Widget, Cardinal);
+static void AdjustText(Widget);
 static void Insert(CtrlTextFieldWidget, String, int);
-static void SetCursor(Widget, Position, Boolean);
+static void SetCursor(Widget, int, Boolean);
 static void Redraw(Widget);
 static Boolean DeleteSelection(Widget);
 
@@ -361,12 +361,12 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	newtf->text.has_clipboard_selection = FALSE;
 	newtf->text.has_destination_selection = FALSE;
 	newtf->text.caret_position = 0;
-	newtf->text.preedit_position = 0;
-	newtf->text.preedit_start = 0;
-	newtf->text.preedit_end = 0;
 	newtf->text.last_time = 0;
 	newtf->text.h_offset = 0;
 	newtf->text.timer_id = 0;
+	newtf->text.preedit_value = NULL;
+	newtf->text.preedit_size = 0;
+	newtf->text.preedit_length = 0;
 	newtf->text.text_length = strlen(origvalue);
 	newtf->text.selection_position = newtf->text.cursor_position = newtf->text.text_length;
 	newtf->text.text_size = MAX(newtf->text.text_length, INPUTSIZE);
@@ -401,7 +401,7 @@ Destroy(Widget w)
 	CtrlTextFieldWidget textw;
 
 	textw = (CtrlTextFieldWidget)w;
-	XtFree(textw->text.value);
+	FREE(textw->text.value);
 }
 
 static void
@@ -409,7 +409,7 @@ Resize(Widget w)
 {
 	CtrlTextFieldWidget textw;
 	Dimension new_width, text_width;
-	Position offset, padding;
+	int offset, padding;
 
 	textw = (CtrlTextFieldWidget)w;
 	padding = textw->primitive.margin_width + textw->primitive.shadow_thickness + textw->primitive.shadow_thickness;
@@ -422,7 +422,7 @@ Resize(Widget w)
 			textw->text.h_offset += new_width - text_width;
 		}
 	}
-	AdjustText(w, textw->text.cursor_position);
+	AdjustText(w);
 	(*ctrlPrimitiveWidgetClass->core_class.resize)(w);
 }
 
@@ -468,7 +468,7 @@ Draw(Widget w)
 {
 	CtrlTextFieldWidget textw;
 	XtWidgetProc draw;
-	Position minpos, maxpos, x, y;
+	int minpos, maxpos, x, y;
 	Dimension width, widthpre;
 
 	textw = (CtrlTextFieldWidget)w;
@@ -507,7 +507,26 @@ Draw(Widget w)
 
 	/* draw selected text or pre-edited text */
 	if (textw->text.under_preedit) {
-#warning TODO: draww preediting text
+		width = _CtrlGetTextWidth(textw->primitive.font, textw->text.preedit_value, textw->text.preedit_length);
+		_CtrlDrawXftRectangle(
+			XtDisplay(w),
+			textw->primitive.pixsave,
+			textw->primitive.foreground,
+			x,
+			y + textw->primitive.font_height,
+			width,
+			1
+		);
+		_CtrlDrawText(
+			XtDisplay(w),
+			textw->primitive.pixsave,
+			textw->primitive.font,
+			textw->primitive.foreground,
+			x, y,
+			textw->text.preedit_value,
+			textw->text.preedit_length
+		);
+		x += width;
 	} else if (maxpos > minpos) {
 		width = _CtrlGetTextWidth(textw->primitive.font, textw->text.value + minpos, maxpos - minpos);
 		_CtrlDrawRectangle(
@@ -545,7 +564,7 @@ Draw(Widget w)
 	/* draw I-beam (cursor line) */
 	if (textw->text.cursor_position == textw->text.selection_position) {
 		if (textw->text.under_preedit && textw->text.caret_position > 0) {
-#warning TODO: get width of preedit text until caret
+			width = _CtrlGetTextWidth(textw->primitive.font, textw->text.preedit_value, textw->text.caret_position);
 		} else {
 			width = 0;
 		}
@@ -599,12 +618,9 @@ InsertChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 static void
 BeginningOfLine(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
-	CtrlTextFieldWidget textw;
-
 	(void)ev;
 	(void)params;
 	(void)nparams;
-	textw = (CtrlTextFieldWidget)w;
 	SetCursor(w, 0, *nparams > 0);
 }
 
@@ -722,7 +738,7 @@ static void
 DeleteWordBackwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
-	Position pos;
+	int pos;
 
 	(void)ev;
 	(void)params;
@@ -742,7 +758,7 @@ static void
 DeleteWordForwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
-	Position pos, tmp;
+	int pos, tmp;
 
 	(void)ev;
 	(void)params;
@@ -769,63 +785,155 @@ done:
 static int
 PreeditStart(XIC xic, XPointer client_data, XPointer call_data)
 {
+	CtrlTextFieldWidget textw;
+
 	(void)xic;
-	(void)client_data;
 	(void)call_data;
-	return -1;
-#warning TODO: write preedit callback functions
+	textw = (CtrlTextFieldWidget)client_data;
+	textw->text.under_preedit = TRUE;
+	textw->text.preedit_size = INPUTSIZE;
+	textw->text.preedit_value = XtMalloc(textw->text.preedit_size);
+	textw->text.preedit_value[0] = '\0';
+	textw->text.preedit_length = 0;
+	return INPUTSIZE;
 }
 
 static int
 PreeditDone(XIC xic, XPointer client_data, XPointer call_data)
 {
+	CtrlTextFieldWidget textw;
+
 	(void)xic;
-	(void)client_data;
 	(void)call_data;
-	return -1;
-#warning TODO: write preedit callback functions
+	textw = (CtrlTextFieldWidget)client_data;
+	textw->text.under_preedit = FALSE;
+	FREE(textw->text.preedit_value);
+	textw->text.preedit_size = 0;
+	textw->text.preedit_length = 0;
+	return 0;
 }
 
 static int
 PreeditDraw(XIC xic, XPointer client_data, XPointer call_data)
 {
+	XIMPreeditDrawCallbackStruct *pdraw;
+	CtrlTextFieldWidget textw;
+	XtAppContext app;
+	Widget w;
+	int beg, dellen, inslen, endlen;
+
 	(void)xic;
-	(void)client_data;
-	(void)call_data;
-	return -1;
-#warning TODO: write preedit callback functions
+	w = (Widget)client_data;
+	textw = (CtrlTextFieldWidget)w;
+	app = XtWidgetToApplicationContext(w);
+	pdraw = (XIMPreeditDrawCallbackStruct *)call_data;
+	if (pdraw == NULL)
+		return 0;
+
+	/* we do not support wide characters */
+	if (pdraw->text && pdraw->text->encoding_is_wchar == True) {
+		WARN(app, "unsupportedEncoding", "Control only supports utf8");
+		return 0;
+	}
+
+	beg = _CtrlRuneBytes(textw->text.preedit_value, pdraw->chg_first);
+	dellen = _CtrlRuneBytes(textw->text.preedit_value + beg, pdraw->chg_length);
+	inslen = pdraw->text ? _CtrlRuneBytes(pdraw->text->string.multi_byte, pdraw->text->length) : 0;
+	endlen = (beg + dellen < textw->text.preedit_length) ? strlen(textw->text.preedit_value + beg + dellen) : 0;
+
+	/* we cannot change text past the end of our pre-edit string */
+	if (beg + dellen >= textw->text.preedit_size || beg + inslen >= textw->text.preedit_size)
+		return 0;
+
+	/* get space for text to be copied, and copy it */
+	memmove(textw->text.preedit_value + beg + inslen, textw->text.preedit_value + beg + dellen, endlen + 1);
+	if (pdraw->text && pdraw->text->length)
+		memcpy(textw->text.preedit_value + beg, pdraw->text->string.multi_byte, inslen);
+	textw->text.preedit_length = beg + inslen + endlen;
+	textw->text.preedit_value[textw->text.preedit_length] = '\0';
+
+	/* get caret position */
+	textw->text.caret_position = _CtrlRuneBytes(textw->text.preedit_value, pdraw->caret);
+
+	/* draw text field */
+	Redraw(w);
+	return 0;
 }
 
 static int
 PreeditCaret(XIC xic, XPointer client_data, XPointer call_data)
 {
+	XIMPreeditCaretCallbackStruct *pcaret;
+	CtrlTextFieldWidget textw;
+	Widget w;
+
 	(void)xic;
-	(void)client_data;
-	(void)call_data;
-	return -1;
-#warning TODO: write preedit callback functions
+	w = (Widget)client_data;
+	textw = (CtrlTextFieldWidget)w;
+	pcaret = (XIMPreeditCaretCallbackStruct *)call_data;
+	if (pcaret == NULL)
+		return 0;
+	switch (pcaret->direction) {
+	case XIMForwardChar:
+		textw->text.caret_position = _CtrlNextRune(textw->text.preedit_value, textw->text.caret_position, +1);
+		break;
+	case XIMBackwardChar:
+		textw->text.caret_position = _CtrlNextRune(textw->text.preedit_value, textw->text.caret_position, -1);
+		break;
+	case XIMForwardWord:
+		textw->text.caret_position = _CtrlMoveWordEdge(textw->text.preedit_value, textw->text.caret_position, +1);
+		break;
+	case XIMBackwardWord:
+		textw->text.caret_position = _CtrlMoveWordEdge(textw->text.preedit_value, textw->text.caret_position, -1);
+		break;
+	case XIMLineStart:
+		textw->text.caret_position = 0;
+		break;
+	case XIMLineEnd:
+		textw->text.caret_position = textw->text.preedit_length;
+		break;
+	case XIMAbsolutePosition:
+		textw->text.caret_position = _CtrlRuneBytes(textw->text.preedit_value, pcaret->position);
+		break;
+	case XIMDontChange:
+		/* do nothing */
+		break;
+	case XIMCaretUp:
+	case XIMCaretDown:
+	case XIMNextLine:
+	case XIMPreviousLine:
+		/* not implemented */
+		break;
+	}
+	pcaret->position = _CtrlRuneChars(textw->text.preedit_value, textw->text.caret_position);
+	Redraw(w);
+	return 0;
 }
 
 static int
 PreeditDestroy(XIC xic, XPointer client_data, XPointer call_data)
 {
+	CtrlTextFieldWidget textw;
+
 	(void)xic;
-	(void)client_data;
 	(void)call_data;
-	return -1;
-#warning TODO: write preedit callback functions
+	textw = (CtrlTextFieldWidget)client_data;
+	textw->text.xic = NULL;
+	return 0;
 }
 
 static void
-AdjustText(Widget w, Cardinal position)
+AdjustText(Widget w)
 {
 	CtrlTextFieldWidget textw;
-	Position left, margin, diff;
+	int left, margin, diff;
 
 	/* update textw->text.h_offset for character at position to be visible */
 	textw = (CtrlTextFieldWidget)w;
 	margin = textw->primitive.margin_width + textw->primitive.shadow_thickness + textw->primitive.highlight_thickness;
-	left = _CtrlGetTextWidth(textw->primitive.font, textw->text.value, position) + textw->text.h_offset + textw->primitive.font_average_width;
+	left = textw->text.h_offset + textw->primitive.font_average_width;
+	left += _CtrlGetTextWidth(textw->primitive.font, textw->text.value, textw->text.cursor_position);
+	left += _CtrlGetTextWidth(textw->primitive.font, textw->text.preedit_value, textw->text.caret_position);
 	if ((diff = left - margin) < 0) {                               /* scroll text to the right */
 		textw->text.h_offset -= diff;
 	} else if ((diff = left - textw->core.width + margin) > 0) {    /* scroll text to the left */
@@ -859,12 +967,11 @@ Insert(CtrlTextFieldWidget textw, String buf, int len)
 }
 
 static void
-SetCursor(Widget w, Position pos, Boolean select)
+SetCursor(Widget w, int pos, Boolean select)
 {
 	CtrlTextFieldWidget textw;
 
 	textw = (CtrlTextFieldWidget)w;
-#warning TODO: Call motion_verify_callback
 	textw->text.cursor_position = pos;
 	if (select) {
 #warning TODO: Primary selection
@@ -880,7 +987,7 @@ Redraw(Widget w)
 	CtrlTextFieldWidget textw;
 
 	textw = (CtrlTextFieldWidget)w;
-	AdjustText(w, textw->text.cursor_position);
+	AdjustText(w);
 	Draw(w);
 	_CtrlCommitPixmap(
 		XtDisplay(w),
@@ -897,7 +1004,7 @@ static Boolean
 DeleteSelection(Widget w)
 {
 	CtrlTextFieldWidget textw;
-	Position minpos, maxpos;
+	int minpos, maxpos;
 
 	textw = (CtrlTextFieldWidget)w;
 	if (textw->text.selection_position == textw->text.cursor_position)

@@ -100,6 +100,7 @@
 #define CtrlNwindow                     XtNwindow
 #define CtrlNx                          XtNx
 #define CtrlNy                          XtNy
+#define CtrlNfaceName                   "faceName"
 #define CtrlNcursor                     "cursor"
 #define CtrlNtooltip                    "tooltip"
 #define CtrlNshadowThickness            "shadowThickness"
@@ -221,6 +222,7 @@
 #define CtrlCColumns                    "Columns"
 #define CtrlCSelforeground              "Selforeground"
 #define CtrlCSelbackground              "Selbackground"
+#define CtrlCFaceName                   "FaceName"
 
 /* resource representation type definitions */
 #define CtrlRAcceleratorTable           XtRAcceleratorTable
