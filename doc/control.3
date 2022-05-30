@@ -123,7 +123,7 @@ and a resource class recognized by the application
 In
 .Nm ,
 objects are named
-.Ql Ctrl*WidgetClass
+.Ql ctrl*WidgetClass
 and resource class are
 .Ql Ctrl*
 (where the asterisk is replaced by the name of the class).
@@ -138,9 +138,10 @@ and
 .Ql CtrlTextField
 are the resource classes for these widget classes
 .Ss Primitive
-Object pointer: CtrlPrimitiveWidgetClass
-.br
-Resource class: CtrlPrimitive
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Object pointer: Ta ctrlPrimitiveWidgetClass
+.It Resource class: Ta CtrlPrimitive
+.El
 .Pp
 The Primitive widget class is the generic superclass for windowed widget classes provided by
 .Nm .
@@ -197,9 +198,10 @@ CtrlNtraverseable
 CtrlNtooltip
 .El
 .Ss TextField
-Object pointer: CtrlTextFieldWidgetClass
-.br
-Resource class: CtrlTextClass
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Object pointer: Ta ctrlTextFieldWidgetClass
+.It Resource class: Ta CtrlTextField
+.El
 .Pp
 The TextField widget class provides a single line text input field for the user to type text in.
 It is subclassed from the Primitive widget class.
@@ -228,10 +230,6 @@ CtrlNlosePrimaryCallback
 .It
 CtrlNlosingFocusCallback
 .It
-CtrlNmodifyVerifyCallback
-.It
-CtrlNmotionVerifyCallback
-.It
 CtrlNselbackground
 .It
 CtrlNselectionThreshold
@@ -243,6 +241,14 @@ CtrlNvalueChangedCallback
 CtrlNvalue
 .El
 .Sh RESOURCES
+This section describes the resources recognized by
+.Nm
+widgets.
+Each subsection refers to a resource name.
+The first paragraph of each subsection defines the class of the resource,
+its default value,
+the the type of its value,
+and the widget classes to which the resource applies.
 .Ss CtrlNactivateCallback
 .Ss CtrlNblinkRate
 .Ss CtrlNcolumns
@@ -266,8 +272,6 @@ CtrlNvalue
 .Ss CtrlNlosingFocusCallback
 .Ss CtrlNmarginHeight
 .Ss CtrlNmarginWidth
-.Ss CtrlNmodifyVerifyCallback
-.Ss CtrlNmotionVerifyCallback
 .Ss CtrlNselbackground
 .Ss CtrlNselectionThreshold
 .Ss CtrlNselforeground
@@ -306,7 +310,16 @@ and the second field being a pointer to the
 .Ql XEvent
 object that caused the callback invocation.
 .Pp
+Each subsection refers to a calldata structure.
+The first paragraph of each subsection defines the resource callback to
+whose callback functions a pointer to the calldata is passed to,
+and the widget classes to which the calldata is relevant to.
 .Ss Generic CallData
+.Bl -column "XXXXXXXXXXXXXXXXXXX"
+.It Callback resources: Ta (various)
+.It Widget classes:     Ta (various)
+.El
+.Pp
 The Generic CallData datatype is the generic type for most callback functions.
 It simply contains a
 .Ql reason
@@ -329,7 +342,7 @@ See the description of each callback resource for information on the possible va
 .It Va event
 Points to the XEvent that triggered the callback.
 It can be
-.Ql NULL
+.Dv NULL
 if there's no X Event to be passed
 (for example, if the action that triggered the callback was generated programmatically).
 .El

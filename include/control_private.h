@@ -84,17 +84,15 @@ typedef struct {
 	XtCallbackList          lose_primary_callback;
 	XtCallbackList          gain_clipboard_callback;
 	XtCallbackList          lose_clipboard_callback;
-	XtCallbackList          modify_verify_callback;
-	XtCallbackList          motion_verify_callback;
 	XtCallbackList          value_changed_callback;
 	XtPointer               selforeground;
 	Pixel                   selbackground;
 	String                  value;
-	Cardinal                text_size;              /* size of allocated value string */
-	Cardinal                text_length;            /* used size of value string */
-	Cardinal                columns;                /* number of character columns in the text input field */
 	Time                    last_time;              /* time of last selection event */
 	Time                    blink_rate;             /* rate of blinking text cursor in msec */
+	Position                text_size;              /* size of allocated value string */
+	Position                text_length;            /* used size of value string */
+	Position                columns;                /* number of character columns in the text input field */
 	Position                h_offset;
 	Position                cursor_position;        /* position of the insertion cursor and one selection extremity */
 	Position                selection_position;     /* position of the other selection extremity */

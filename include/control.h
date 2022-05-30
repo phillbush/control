@@ -124,8 +124,6 @@
 #define CtrlNlosePrimaryCallback        "losePrimaryCallback"
 #define CtrlNgainClipboardCallback      "gainClipboardCallback"
 #define CtrlNloseClipboardCallback      "loseClipboardCallback"
-#define CtrlNmodifyVerifyCallback       "modifyVerifyCallback"
-#define CtrlNmotionVerifyCallback       "motionVerifyCallback"
 #define CtrlNvalueChangedCallback       "valueChangedCallback"
 #define CtrlNmarginHeight               "marginHeight"
 #define CtrlNmarginWidth                "marginWidth"
@@ -305,8 +303,8 @@ enum {
 
 /* Callback Structures */
 typedef struct {
-	int     reason;
-	XEvent *event;
+	int             reason;
+	XEvent         *event;
 } CtrlGenericCallData;
 
 /* widget class types */

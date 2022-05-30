@@ -229,24 +229,6 @@ static XtResource resources[] = {
 		.default_addr    = (XtPointer)NULL,
 	},
 	{
-		.resource_name   = CtrlNmodifyVerifyCallback,
-		.resource_class  = CtrlCCallback,
-		.resource_type   = CtrlRCallback,
-		.resource_size   = sizeof(XtCallbackList),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.modify_verify_callback),
-		.default_type    = CtrlRCallback,
-		.default_addr    = (XtPointer)NULL,
-	},
-	{
-		.resource_name   = CtrlNmotionVerifyCallback,
-		.resource_class  = CtrlCCallback,
-		.resource_type   = CtrlRCallback,
-		.resource_size   = sizeof(XtCallbackList),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.motion_verify_callback),
-		.default_type    = CtrlRCallback,
-		.default_addr    = (XtPointer)NULL,
-	},
-	{
 		.resource_name   = CtrlNvalueChangedCallback,
 		.resource_class  = CtrlCCallback,
 		.resource_type   = CtrlRCallback,
@@ -604,7 +586,6 @@ InsertChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	if (iscntrl(*buf) || *buf == '\0') {
 		return;
 	}
-#warning TODO: Call modify_verify_callback
 	DeleteSelection(w);
 	Insert(textw, buf, len);
 	cd = (CtrlGenericCallData){
@@ -678,7 +659,6 @@ DeletePrevChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-#warning TODO: Call modify_verify_callback
 	if (DeleteSelection(w))
 		goto done;
 	if (textw->text.cursor_position > 0)
@@ -696,7 +676,6 @@ DeleteNextChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-#warning TODO: Call modify_verify_callback
 	if (DeleteSelection(w))
 		goto done;
 	if (textw->text.value[textw->text.cursor_position] != '\0')
@@ -716,7 +695,6 @@ DeleteToBeginning(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-#warning TODO: Call modify_verify_callback
 	if (DeleteSelection(w))
 		goto done;
 	Insert(textw, NULL, 0 - textw->text.cursor_position);
@@ -733,7 +711,6 @@ DeleteToEnd(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-#warning TODO: Call modify_verify_callback
 	if (DeleteSelection(w))
 		goto done;
 	textw->text.value[textw->text.cursor_position] = '\0';
@@ -751,7 +728,6 @@ DeleteWordBackwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-#warning TODO: Call modify_verify_callback
 	if (DeleteSelection(w))
 		goto done;
 	while (textw->text.cursor_position > 0 && isspace((unsigned char)textw->text.value[(pos = _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1))]))
@@ -772,7 +748,6 @@ DeleteWordForwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-#warning TODO: Call modify_verify_callback
 	if (DeleteSelection(w))
 		goto done;
 	while (textw->text.value[textw->text.cursor_position] != '\0' && !isspace((unsigned char)textw->text.value[(pos = _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1))])) {
@@ -841,16 +816,16 @@ PreeditDestroy(XIC xic, XPointer client_data, XPointer call_data)
 #warning TODO: write preedit callback functions
 }
 
-/* update textw->text.h_offset for character at cursor_position to be visible */
 static void
-AdjustText(Widget w, Cardinal cursor_position)
+AdjustText(Widget w, Cardinal position)
 {
 	CtrlTextFieldWidget textw;
 	Position left, margin, diff;
 
+	/* update textw->text.h_offset for character at position to be visible */
 	textw = (CtrlTextFieldWidget)w;
 	margin = textw->primitive.margin_width + textw->primitive.shadow_thickness + textw->primitive.highlight_thickness;
-	left = _CtrlGetTextWidth(textw->primitive.font, textw->text.value, cursor_position) + textw->text.h_offset + textw->primitive.font_average_width;
+	left = _CtrlGetTextWidth(textw->primitive.font, textw->text.value, position) + textw->text.h_offset + textw->primitive.font_average_width;
 	if ((diff = left - margin) < 0) {                               /* scroll text to the right */
 		textw->text.h_offset -= diff;
 	} else if ((diff = left - textw->core.width + margin) > 0) {    /* scroll text to the left */
