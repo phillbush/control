@@ -165,7 +165,7 @@ CtrlNhighlightPixmap
 .It
 CtrlNhighlightThickness
 .It
-CtrlNfont
+CtrlNfaceName
 .It
 CtrlNfontAscent
 .It
@@ -212,27 +212,9 @@ in addition to those inherited from its superclass:
 .It
 CtrlNactivateCallback
 .It
-CtrlNblinkRate
-.It
 CtrlNcolumns
 .It
-CtrlNdestinationCallback
-.It
-CtrlNfocusCallback
-.It
-CtrlNgainClipboardCallback
-.It
-CtrlNgainPrimaryCallback
-.It
-CtrlNloseClipboardCallback
-.It
-CtrlNlosePrimaryCallback
-.It
-CtrlNlosingFocusCallback
-.It
 CtrlNselbackground
-.It
-CtrlNselectionThreshold
 .It
 CtrlNselforeground
 .It
@@ -248,42 +230,322 @@ Each subsection refers to a resource name.
 The first paragraph of each subsection defines the class of the resource,
 its default value,
 the the type of its value,
-and the widget classes to which the resource applies.
+the widget classes to which the resource applies,
+and its access possibilities.
+.Pp
+There are three access posibilities in a resource:
+.Sy Create Ns ,
+which specifies that the resource can be set at widget creation/initialization time;
+.Sy Set Ns ,
+which specifies that the resource can be set at any time using
+.Xr XtSetValues 3 ;
+and
+.Sy Get Ns ,
+which specifies that the resource can be retrieved at any time using
+.Xr XtGetValues 3 .
 .Ss CtrlNactivateCallback
-.Ss CtrlNblinkRate
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCCallback
+.It Data type:      Ta XtCallbackList
+.It Default value:  Ta NULL
+.It Widget classes: Ta TextField (and subclasses)
+.It Access:         Ta Create
+.El
+.Pp
+The
+.Ql CtrlNactivateCallback
+resource specifies the callback functions to be called when the user invokes the activate() action.
+Its call data is a pointer to a
+.Ql CtrlGenericCallData
+structure,
+whose reason field is set to
+.Ql CTRL_ACTIVATE Ns .
 .Ss CtrlNcolumns
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCColumns
+.It Data type:      Ta Dimension
+.It Default value:  Ta 20
+.It Widget classes: Ta TextField (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlGenericCallData
+resource specifies the initial width of the input field as a non-negative integer number of characters
+(the width of characters is equal to the average width of the glyphs of the font of the widget).
 .Ss CtrlNcursor
-.Ss CtrlNdestinationCallback
-.Ss CtrlNfocusCallback
-.Ss CtrlNfont
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCCursor
+.It Data type:      Ta Cursor
+.It Default value:  Ta (varies)
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlNcursor
+resource specifies the mouse cursor to be displayed when the pointer is over the widget.
+Its default value varies with widget
+(it is an I-beam on text widgets and a regular left-pointing cursor otherwise).
+.Ss CtrlNfaceName
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCFaceName
+.It Data type:      Ta XftFont
+.It Default value:  Ta "monospace"
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlNfaceName
+resource specifies the font in which text should be written in the widget.
+Both Xft and XLFD fonts are supported.
+However, only a single font is used (font fallback is not supported (yet?)).
 .Ss CtrlNfontAscent
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCFontAscent
+.It Data type:      Ta Dimension
+.It Default value:  Ta (varies with font)
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Get
+.El
+.Pp
+The
+.Ql CtrlNfontAscent
+resource specifies the height between the baseline and the top of a glyph in the font.
+This resource cannot be set manually;
+it is automatically redefined when the font is changed.
 .Ss CtrlNfontAverageWidth
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCFontAverageWidth
+.It Data type:      Ta Dimension
+.It Default value:  Ta (varies with font)
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Get
+.El
+.Pp
+The
+.Ql CtrlNfontAverageWidth
+resource specifies the average width of the glyphs in the font.
+This resource cannot be set manually;
+it is automatically redefined when the font is changed.
 .Ss CtrlNfontDescent
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCFontDescent
+.It Data type:      Ta Dimension
+.It Default value:  Ta (varies with font)
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Get
+.El
+.Pp
+The
+.Ql CtrlNfontDescent
+resource specifies the distance that a glyph descends below the baseline in the font.
+This resource cannot be set manually;
+it is automatically redefined when the font is changed.
 .Ss CtrlNfontHeight
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCFontHeight
+.It Data type:      Ta Dimension
+.It Default value:  Ta (varies with font)
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Get
+.El
+.Pp
+The
+.Ql CtrlNfontHeight
+resource specifies the maximum height of a glyph in the font.
+This resource cannot be set manually;
+it is automatically redefined when the font is changed.
 .Ss CtrlNforeground
-.Ss CtrlNgainClipboardCallback
-.Ss CtrlNgainPrimaryCallback
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCForeground
+.It Data type:      Ta XftColor
+.It Default value:  Ta "#FFFFFF"
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlNforeground
+resource specifies the color in which text is written in the widget.
 .Ss CtrlNhighlightColor
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCHighlightColor
+.It Data type:      Ta Pixel
+.It Default value:  Ta "#C5C8C6"
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+TODO.
 .Ss CtrlNhighlightPixmap
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCHighlightPixmap
+.It Data type:      Ta Pixmap
+.It Default value:  Ta None
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+TODO.
 .Ss CtrlNhighlightThickness
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCHighlightThickness
+.It Data type:      Ta Dimension
+.It Default value:  Ta 2
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+TODO.
 .Ss CtrlNisTabGroup
-.Ss CtrlNloseClipboardCallback
-.Ss CtrlNlosePrimaryCallback
-.Ss CtrlNlosingFocusCallback
+TODO.
 .Ss CtrlNmarginHeight
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCMarginHeight
+.It Data type:      Ta Dimension
+.It Default value:  Ta 5
+.It Widget classes: Ta TextField (and subclasses)
+.It Access:         Ta Create
+.El
+.Pp
+The
+.Ql CtrlNmarginHeight
+resource specifies the distance between the top edge of the widget and the text;
+and the bottom edge of the widget and the text.
 .Ss CtrlNmarginWidth
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCMarginWidth
+.It Data type:      Ta Dimension
+.It Default value:  Ta 5
+.It Widget classes: Ta TextField (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlNmarginWidth
+resource specifies the distance between the left edge of the widget and the text;
+and the right edge of the widget and the text.
 .Ss CtrlNselbackground
-.Ss CtrlNselectionThreshold
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCSelbackground
+.It Data type:      Ta Pixel
+.It Default value:  Ta "#3465A4"
+.It Widget classes: Ta TextField (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlNselbackground
+resource specifies the color of the background of the area under selection in a text widget.
 .Ss CtrlNselforeground
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCSelforeground
+.It Data type:      Ta XftColor
+.It Default value:  Ta "#FFFFFF"
+.It Widget classes: Ta TextField (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlNselforeground
+resource specifies the color of the text of the area under selection in a text widget.
 .Ss CtrlNshadowDarkColor
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCShadowDarkColor
+.It Data type:      Ta Pixel
+.It Default value:  Ta "#101010"
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlNshadowDarkColor
+resource specifies the color to use to draw the dark edges of a widget.
 .Ss CtrlNshadowDarkPixmap
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCShadowDarkPixmap
+.It Data type:      Ta Pixmap
+.It Default value:  Ta None
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlNshadowDarkPixmap
+resource specifies the pixmap to use to draw the dark edges of a widget.
 .Ss CtrlNshadowLightColor
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCShadowLightColor
+.It Data type:      Ta Pixel
+.It Default value:  Ta "#101010"
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlNshadowLightColor
+resource specifies the color to use to draw the light edges of a widget.
 .Ss CtrlNshadowLightPixmap
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCShadowLightPixmap
+.It Data type:      Ta Pixmap
+.It Default value:  Ta None
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlNshadowLightPixmap
+resource specifies the pixmap to use to draw the light edges of a widget.
 .Ss CtrlNshadowThickness
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCShadowThickness
+.It Data type:      Ta Dimension
+.It Default value:  Ta 5
+.It Widget classes: Ta Primitive (and subclasses)
+.It Access:         Ta Create, Set, Get
+.El
+.Pp
+The
+.Ql CtrlNshadowThickness
+resource specifies the width of the shadowed edges of a widget.
 .Ss CtrlNtooltip
+TODO.
 .Ss CtrlNtraverseable
+TODO.
 .Ss CtrlNvalue
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCValue
+.It Data type:      Ta String
+.It Default value:  Ta ""
+.It Widget classes: Ta TextField (and subclasses)
+.It Access:         Ta Create, Set, Get*
+.El
+.Pp
+The
+.Ql CtrlNvalue
+resource specifies the string value of the text widget as a String (char *) value.
+.Pp
+*XtGetValues returns the internal string used by the widget, so it should not be freed.
 .Ss CtrlNvalueChangedCallback
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Resource class: Ta CtrlCCallback
+.It Data type:      Ta XtCallbackList
+.It Default value:  Ta NULL
+.It Widget classes: Ta TextField (and subclasses)
+.It Access:         Ta Create
+.El
+.Pp
+The CtrlNvalueChangedCallback
+resource specifies the callback functions to be called when any action
+that changes the input field buffer is triggered.
+Its call data is a pointer to
+.Ql CtrlGenericCallData
+structure,
+whose reason field is set to
+.Ql CTRL_VALUE_CHANGED Ns .
 .Sh CALLBACKS
 The callback functions registered in a widget's callback resource is invoked by
 .Nm
@@ -347,12 +609,351 @@ if there's no X Event to be passed
 (for example, if the action that triggered the callback was generated programmatically).
 .El
 .Sh TRANSLATIONS
-TODO.
+A translation is a mapping between a sequence of X events
+and an internal action on the widget.
+An X event can be a key press, a mouse button press, a focus out event, etc.
+This section lists the sequences of events and the actions to which they are mapped.
+For more information on the actions themselves, see the section
+.Sx Actions Ns .
+Translations are listed based on the widget classes they occurr.
+Note that translations can be overwritten or augmented via X resources.
+.Pp
+For example, on a TextField widget, the
+.Ql <Key>Escape
+(that is, the Escape key)
+triggers the
+.Ic select-nothing()
+action, which deselects any selected text in the input field.
+And the
+.Ql s ~c <Key>Home
+(that is, the Home key with the shift modifier key pressed and the control modifier key unpressed)
+triggers the
+.Ic beginning-of-line()
+action
+with the
+.Ic extend
+argument.
+.Bl -tag -width Ds
+.It <Key>Escape
+.Ic select-nothing()
+.It ~s c <Key>A
+.Ic select-all()
+.It ~s ~c <Key>Home
+.Ic beginning-of-line()
+.It ~s ~c <Key>KP_Home
+.Ic beginning-of-line()
+.It s c <Key>A
+.Ic beginning-of-line(extend)
+.It s ~c <Key>Home
+.Ic beginning-of-line(extend)
+.It s ~c <Key>KP_Home
+.Ic beginning-of-line(extend)
+.It ~s c <Key>B
+.Ic backward-character()
+.It ~s ~c <Key>Left
+.Ic backward-character()
+.It ~s ~c <Key>KP_Left
+.Ic backward-character()
+.It s c <Key>B
+.Ic backward-character(extend)
+.It s ~c <Key>Left
+.Ic backward-character(extend)
+.It s ~c <Key>KP_Left
+.Ic backward-character(extend)
+.It c <Key>C
+.Ic copy-clipboard()
+.It c <Key>D
+.Ic delete-next-character()
+.It ~c <Key>Delete
+.Ic delete-next-character()
+.It ~s c <Key>E
+.Ic end-of-line()
+.It ~s ~c <Key>End
+.Ic end-of-line()
+.It ~s ~c <Key>KP_End
+.Ic end-of-line()
+.It s c <Key>E
+.Ic end-of-line(extend)
+.It s ~c <Key>End
+.Ic end-of-line(extend)
+.It s ~c <Key>KP_End
+.Ic end-of-line(extend)
+.It ~s c <Key>F
+.Ic forward-character()
+.It ~s ~c <Key>Right
+.Ic forward-character()
+.It ~s ~c <Key>KP_Right
+.Ic forward-character()
+.It s c <Key>F
+.Ic forward-character(extend)
+.It s ~c <Key>Right
+.Ic forward-character(extend)
+.It s ~c <Key>KP_Right
+.Ic forward-character(extend)
+.It c <Key>H
+.Ic delete-previous-character()
+.It ~c <Key>BackSpace
+.Ic delete-previous-character()
+.It c <Key>K
+.Ic kill-to-end-of-line()
+.It c <Key>U
+.Ic kill-to-beginning-of-line()
+.It c <Key>V
+.Ic paste-clipboard()
+.It c <Key>W
+.Ic backward-kill-word()
+.It c <Key>BackSpace
+.Ic backward-kill-word()
+.It c <Key>Delete
+.Ic forward-kill-word()
+.It ~s c <Key>Z
+.Ic undo()
+.It s c <Key>Z
+.Ic redo()
+.It ~s c <Key>Left
+.Ic backward-word()
+.It ~s c <Key>KP_Left
+.Ic backward-word()
+.It s c <Key>Left
+.Ic backward-word(extend)
+.It s c <Key>KP_Left
+.Ic backward-word(extend)
+.It ~s c <Key>Right
+.Ic forward-word()
+.It ~s c <Key>KP_Right
+.Ic forward-word()
+.It s c <Key>Right
+.Ic forward-word(extend)
+.It s c <Key>KP_Right
+.Ic forward-word(extend)
+.It <Key>Return
+.Ic activate()
+.It <Key>KP_Enter
+.Ic activate()
+.It <Btn1Down>
+.Ic select-start()
+.It <Btn1Motion>
+.Ic select-adjust()
+.It <Btn1Up>
+.Ic select-end()
+.It <Btn3Up>
+.Ic select-end()
+.It <Btn2Down>
+.Ic paste-primary()
+.It <Btn3Down>
+.Ic extend()
+.It <Key>
+.Ic insert-char()
+.El
 .Sh ACTIONS
+Actions are internal procedures provided by the widget itself.
+Actions can be triggered by a certain sequence of events,
+depending on the translation mapping.
+.Ss Primitive
+This section lists the actions of Primitive widgets.
+.Pp
 TODO.
+.Ss Primitive
+This section lists the actions of TextField widgets.
+.Pp
+.Bl -tag -width Ds
+.It Ic activate()
+Calls the callbacks for XmNactivateCallback.
+If the parent is a manager, passes the event to the parent.
+.It Ic backward-character()
+Moves the insertion cursor one character to the left.
+With the
+.Ic extend
+argument,
+also extends the current selection, copying the selected text to the
+.Sy PRIMARY
+selection.
+.It Ic backward-kill-word()
+Deletes the characters from the insertion cursor until the beginning of the current word.
+After this action is triggered, it calls the
+.Ql CtrlNvalueChangedCallback
+callback functions with the
+reason set to
+.Ql CTRL_VALUE_CHANGED Ns .
+.It Ic backward-word()
+Moves the insertion cursor to the beginning of the current word.
+With the
+.Ic extend
+argument,
+also extends the current selection, copying the selected text to the
+.Sy PRIMARY
+selection.
+.It Ic beginning-of-line()
+Moves the insertion cursor to the beginning of the line.
+With the
+.Ic extend
+argument,
+also extends the current selection, copying the selected text to the
+.Sy PRIMARY
+selection.
+.It Ic copy-clipboard()
+Copies the selected text to the
+.Sy CLIPBOARD
+selection.
+.It Ic delete-next-character()
+Deletes the character to the right of the insertion cursor.
+After this action is triggered, it calls the
+.Ql CtrlNvalueChangedCallback
+callback functions with the
+reason set to
+.Ql CTRL_VALUE_CHANGED Ns .
+.It Ic delete-previous-character()
+Deletes the character to the left of the insertion cursor.
+After this action is triggered, it calls the
+.Ql CtrlNvalueChangedCallback
+callback functions with the
+reason set to
+.Ql CTRL_VALUE_CHANGED Ns .
+.It Ic end-of-line()
+Moves the insertion cursor to the end of the line.
+With the
+.Ic extend
+argument,
+also extends the current selection, copying the selected text to the
+.Sy PRIMARY
+selection.
+.It Ic extend()
+Extends the selection to the cursor position,
+copying the selected text to the
+.Sy PRIMARY
+selection.
+.It Ic forward-character()
+Moves the insertion cursor one character to the left.
+With the
+.Ic extend
+argument,
+also extends the current selection, copying the selected text to the
+.Sy PRIMARY
+selection.
+.It Ic forward-kill-word()
+Deletes the characters from the insertion cursor until the end of the current word.
+After this action is triggered, it calls the
+.Ql CtrlNvalueChangedCallback
+callback functions with the
+reason set to
+.Ql CTRL_VALUE_CHANGED Ns .
+.It Ic forward-word()
+Moves the insertion cursor to the end of the current word.
+With the
+.Ic extend
+argument,
+also extends the current selection, copying the selected text to the
+.Sy PRIMARY
+selection.
+.It Ic insert-char()
+Deletes any selected text,
+and inserts before the insertion cursor the character associated with the key pressed.
+After this action is triggered, it calls the
+.Ql CtrlNvalueChangedCallback
+callback functions with the
+reason set to
+.Ql CTRL_VALUE_CHANGED Ns .
+.It Ic kill-to-beginning-of-line()
+Deletes the characters from the insertion cursor until the beginning of the line.
+After this action is triggered, it calls the
+.Ql CtrlNvalueChangedCallback
+callback functions with the
+reason set to
+.Ql CTRL_VALUE_CHANGED Ns .
+.It Ic kill-to-end-of-line()
+Deletes the characters from the insertion cursor until the end of the line.
+After this action is triggered, it calls the
+.Ql CtrlNvalueChangedCallback
+callback functions with the
+reason set to
+.Ql CTRL_VALUE_CHANGED Ns .
+.It Ic paste-clipboard()
+Deletes any selected text, and inserts before the insertion cursor the content of the
+.Sy CLIPBOARD
+selection.
+.It Ic paste-primary()
+Deletes any selected text, and inserts before the insertion cursor the content of the
+.Sy PRIMARY
+selection.
+.It Ic redo()
+Reverses an undo operation or advances the buffer to a more recent state.
+.It Ic select-all()
+Selects the entire line,
+copying it to the
+.Sy PRIMARY
+selection.
+.It Ic select-nothing()
+Deselects any selected text.
+.It Ic select-start()
+Starts a selection with the mouse.
+.It Ic select-adjust()
+Moves a selection with the mouse.
+.It Ic select-end()
+Ends a selection with the mouse,
+copying the selected text to the
+.Sy PRIMARY
+selection.
+.It Ic undo()
+Erases the last change done to the buffer, reverting it to an older state.
+.El
 .Sh EXAMPLES
+The following example uses the TextField widget to create a prompt application.
+When activated (by pressing Enter) the application closes and the input text is printed to the standard output.
 .Bd -literal
-/* TODO */
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <X11/Shell.h>
+#include <control.h>
+
+static String fallbackresources[] = {
+	"*CtrlTextField.value:          Hello World",
+	"*CtrlTextField.columns:        50",
+	NULL
+};
+
+static void
+printandexit(Widget w, XtPointer client_data, XtPointer call_data)
+{
+	String str;
+
+	(void)client_data;
+	(void)call_data;
+	XtVaGetValues(w, CtrlNvalue, &str, NULL);
+	printf("%s\n", str);
+	XtDestroyApplicationContext(XtWidgetToApplicationContext(w));
+	exit(0);
+}
+
+int
+main(int argc, char *argv[])
+{
+	XtAppContext app;
+	Widget shell;
+
+	XtSetLanguageProc(NULL, NULL, NULL);
+	shell = XtOpenApplication(
+		&app,
+		"Demo",
+		NULL, 0,
+		&argc, argv,
+		fallbackresources,
+		sessionShellWidgetClass,
+		NULL, 0
+	);
+	(void)XtVaCreateManagedWidget(
+		"textfield",
+		ctrlTextFieldWidgetClass,
+		shell,
+		CtrlNactivateCallback, (XtCallbackRec[]){
+			{ .callback = printandexit, .closure = NULL },
+			{ .callback = NULL,         .closure = NULL },
+		},
+		NULL
+	);
+	XtRealizeWidget(shell);
+	XtAppMainLoop(app);
+}
 .Ed
 .Sh SEE ALSO
 .Xr X 1
@@ -381,15 +982,17 @@ They may be re-added in a later version.
 .Sh TODO
 .Bl -bullet -compact
 .It
-Draw blinking I-beam (aka text cursor) in TextField widget, depending on whether it has focus.
+Draw blinking I-beam input cursor in TextField widget, depending on whether it has focus.
 .It
 Handle overstrike (Insert mode).
 .It
-Handle mouse events in TextField.
-.It
-Write functions for all actions in TextField.
-.It
 Remove the #warnings directives.
+.It
+Write the Vendor Shell widget class.
+.It
+Write a Manager widget class.
+.It
+Write a more widget classes.
 .El
 .Sh AUTHORS
 The

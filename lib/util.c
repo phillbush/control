@@ -56,6 +56,35 @@ NullProc(Widget w, XtPointer p, XEvent *ev, Boolean *b)
 }
 
 static Boolean
+CvtStringToDimension(Display *dpy, XrmValue *args, Cardinal *nargs, XrmValue *from, XrmValue *to, XtPointer *data)
+{
+	XtAppContext app;
+	String str, ep;
+	Dimension val;
+
+	(void)args;
+	(void)nargs;
+	(void)data;
+	app = XtDisplayToApplicationContext(dpy);
+	XtAppLock(app);
+	if (from->addr == NULL)
+		goto error;
+	str = (String)from->addr;
+	errno = 0;
+	val = strtoul(str, &ep, 10);
+	if (str[0] == '\0' || *ep != '\0' || errno == ERANGE) {
+		WARN(app, "unknownValue", "value is not a number");
+		goto error;
+	}
+	XtAppUnlock(app);
+	CONVERTER_DONE(to, Dimension, val)
+	return TRUE;
+error:
+	XtAppUnlock(app);
+	return FALSE;
+}
+
+static Boolean
 CvtStringToCardinal(Display *dpy, XrmValue *args, Cardinal *nargs, XrmValue *from, XrmValue *to, XtPointer *data)
 {
 	XtAppContext app;
@@ -311,6 +340,13 @@ _CtrlRegisterConverters(void)
 			CtrlRString,
 			CtrlRCardinal,
 			CvtStringToCardinal,
+			XtCacheNone,
+			NULL,
+		},
+		{
+			CtrlRString,
+			CtrlRDimension,
+			CvtStringToDimension,
 			XtCacheNone,
 			NULL,
 		},

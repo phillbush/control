@@ -82,8 +82,7 @@ typedef struct {
 	XtPointer               selforeground;
 	Pixel                   selbackground;
 	String                  value;
-	int                     columns;                /* number of character columns in the text input field */
-	Dimension               select_threshold;
+	Dimension               columns;                /* number of character columns in the text input field */
 
 	/* internal */
 	XtPointer               undo_list;              /* list of editions */

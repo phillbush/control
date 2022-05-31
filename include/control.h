@@ -301,6 +301,7 @@
 enum {
 	CTRL_NONE,
 	CTRL_VALUE_CHANGED,
+	CTRL_ACTIVATE,
 };
 
 /* Callback Structures */

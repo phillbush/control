@@ -22,11 +22,12 @@ struct Undo {
 	int length;
 };
 
-/*
- * The last entry of the undo_list is a dummy entry with .text set to
- * NULL, we use it to know whether we are at the end of the undo list.
- */
-struct Undo dummy_undo = {
+static struct Undo dummy_undo = {
+	/*
+	 * The last entry of the undo_list is a dummy entry with .text
+	 * set to NULL, we use it to know whether we are at the end of
+	 * the undo list.
+	 */
 	.text = NULL,
 	.prev = NULL,
 	.next = NULL,
@@ -44,11 +45,13 @@ static XtGeometryResult QueryGeometry(Widget, XtWidgetGeometry *, XtWidgetGeomet
 static void Draw(Widget);
 
 /* actions */
+static void Activate(Widget, XEvent *, String *, Cardinal *);
 static void SelectNothing(Widget, XEvent *, String *, Cardinal *);
 static void SelectAll(Widget, XEvent *, String *, Cardinal *);
 static void InsertChar(Widget, XEvent *, String *, Cardinal *);
 static void BeginningOfLine(Widget, XEvent *, String *, Cardinal *);
 static void EndOfLine(Widget, XEvent *, String *, Cardinal *);
+static void Extend(Widget, XEvent *, String *, Cardinal *);
 static void BackwardCharacter(Widget, XEvent *, String *, Cardinal *);
 static void BackwardWord(Widget, XEvent *, String *, Cardinal *);
 static void CopyClipboard(Widget, XEvent *, String *, Cardinal *);
@@ -155,6 +158,7 @@ char translations[] =
 
 static XtActionsRec actions[] = {
 	/* text replacing bindings */
+	{"activate",                    Activate},
 	{"backward-character",          BackwardCharacter},
 	{"backward-kill-word",          DeleteWordBackwards},
 	{"backward-word",               BackwardWord},
@@ -163,6 +167,7 @@ static XtActionsRec actions[] = {
 	{"delete-next-character",       DeleteNextChar},
 	{"delete-previous-character",   DeletePrevChar},
 	{"end-of-line",                 EndOfLine},
+	{"extend",                      Extend},
 	{"forward-character",           ForwardCharacter},
 	{"forward-kill-word",           DeleteWordForwards},
 	{"forward-word",                ForwardWord},
@@ -184,8 +189,8 @@ static XtResource resources[] = {
 	{
 		.resource_name   = CtrlNcolumns,
 		.resource_class  = CtrlCColumns,
-		.resource_type   = CtrlRCardinal,
-		.resource_size   = sizeof(Cardinal),
+		.resource_type   = CtrlRDimension,
+		.resource_size   = sizeof(Dimension),
 		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.columns),
 		.default_type    = CtrlRImmediate,
 		.default_addr    = (XtPointer)DEF_TEXT_COLUMNS,
@@ -234,15 +239,6 @@ static XtResource resources[] = {
 		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.value),
 		.default_type    = CtrlRString,
 		.default_addr    = (XtPointer)"",
-	},
-	{
-		.resource_name   = CtrlNselectThreshold,
-		.resource_class  = CtrlCSelectThreshold,
-		.resource_type   = CtrlRDimension,
-		.resource_size   = sizeof(Dimension),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, text.select_threshold),
-		.default_type    = CtrlRImmediate,
-		.default_addr    = (XtPointer)DEF_SELECT_THRESHOLD,
 	},
 	{
 		.resource_name   = CtrlNisTabGroup,
@@ -380,12 +376,22 @@ static void
 Destroy(Widget w)
 {
 	CtrlTextFieldWidget textw;
+	struct Undo *undo, *tmp;
 
 	textw = (CtrlTextFieldWidget)w;
 	FREE(textw->text.value);
 	FREE(textw->text.preedit_value);
 	FREE(textw->text.clipboard_value);
 	FREE(textw->text.primary_value);
+	undo = (struct Undo *)textw->text.undo_list;
+	while (undo) {
+		tmp = undo;
+		undo = undo->next;
+		if (tmp->text != NULL) {
+			FREE(tmp->text);
+			FREE(tmp);
+		}
+	}
 }
 
 static void
@@ -453,7 +459,7 @@ SetValues(Widget cw, Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	    newtf->text.selbackground != oldtf->text.selbackground) {
 		redraw = TRUE;
 	}
-	if (newtf->text.columns != oldtf->text.columns && oldtf->text.columns > 0) {
+	if (newtf->text.columns != oldtf->text.columns) {
 		newtf->text.columns = oldtf->text.columns;
 	}
 	width = THICKNESS(nw) + 2 * newtf->primitive.margin_width + newtf->text.columns * newtf->primitive.font_average_width;
@@ -593,6 +599,23 @@ Draw(Widget w)
 }
 
 static void
+Activate(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlGenericCallData cd;
+	CtrlTextFieldWidget textw;
+
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	cd = (CtrlGenericCallData){
+		.reason = CTRL_ACTIVATE,
+		.event = ev,
+	};
+	XtCallCallbackList(w, textw->text.activate_callback, (XtPointer)&cd);
+#warning TODO: if the parent is a manager, pass the event to the parent
+}
+
+static void
 SelectNothing(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
@@ -664,6 +687,25 @@ EndOfLine(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	textw = (CtrlTextFieldWidget)w;
 	SetCursor(w, ev->xkey.time, textw->text.text_length, *nparams > 0, TRUE);
+}
+
+static void
+Extend(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+	int minpos, maxpos, pos;
+
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
+	maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
+	pos = GetCursorPosition(w, ev->xbutton.x);
+	if (pos < minpos)
+		textw->text.selection_position = maxpos;
+	if (pos > maxpos)
+		textw->text.selection_position = minpos;
+	SetCursor(w, ev->xbutton.time, pos, TRUE, TRUE);
 }
 
 static void
@@ -1192,8 +1234,8 @@ ValueChanged(Widget w, XEvent *ev)
 {
 	CtrlGenericCallData cd;
 	CtrlTextFieldWidget textw;
-	textw = (CtrlTextFieldWidget)w;
 
+	textw = (CtrlTextFieldWidget)w;
 	cd = (CtrlGenericCallData){
 		.reason = CTRL_VALUE_CHANGED,
 		.event = ev,
@@ -1378,6 +1420,7 @@ Paste(Widget w, XtPointer client_data, Atom *sel, Atom *type, XtPointer val, uns
 	if (i == 0)
 		return;
 	AddUndo(w, TRUE);
+	DeleteSelection(w);
 	Insert((CtrlTextFieldWidget)w, s, i);
 	Redraw(w);
 }

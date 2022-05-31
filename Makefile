@@ -8,14 +8,15 @@ MANPREFIX = ${PREFIX}/share/man
 XCFLAGS = -Iinclude -I/usr/X11R6/include -I/usr/local/include -I/usr/include/freetype2 -I/usr/X11R6/include/freetype2 -fPIC
 XLDFLAGS = -L/usr/local/lib -L/usr/X11R6/lib -lfontconfig -lXft -lXt -lX11
 
-DEMOS = demos/primitive \
-        demos/textfield
+DEMOS = \
+	demos/prompt
 
 LIBS = lib/libcontrol.a lib/libcontrol.so
 
-OBJS_LIB = lib/util.o \
-           lib/primitive.o \
-           lib/textfield.o
+OBJS_LIB = \
+	lib/util.o \
+	lib/primitive.o \
+	lib/textfield.o
 
 OBJS_DEMO = ${DEMOS:=.o}
 

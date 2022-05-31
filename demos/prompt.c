@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <X11/Shell.h>
 #include <control.h>
 
@@ -6,6 +9,19 @@ static String fallbackresources[] = {
 	"*CtrlTextField.columns:        50",
 	NULL
 };
+
+static void
+printandexit(Widget w, XtPointer client_data, XtPointer call_data)
+{
+	String str;
+
+	(void)client_data;
+	(void)call_data;
+	XtVaGetValues(w, CtrlNvalue, &str, NULL);
+	printf("%s\n", str);
+	XtDestroyApplicationContext(XtWidgetToApplicationContext(w));
+	exit(0);
+}
 
 int
 main(int argc, char *argv[])
@@ -27,6 +43,10 @@ main(int argc, char *argv[])
 		"textfield",
 		ctrlTextFieldWidgetClass,
 		shell,
+		CtrlNactivateCallback, (XtCallbackRec[]){
+			{ .callback = printandexit, .closure = NULL },
+			{ .callback = NULL,         .closure = NULL },
+		},
 		NULL
 	);
 	XtRealizeWidget(shell);

@@ -25,7 +25,6 @@
 #define DEF_TEXT_COLUMNS        20
 #define DEF_TEXT_MARGIN         5
 #define DEF_BLINK_RATE          500
-#define DEF_SELECT_THRESHOLD    5
 #define DEF_FONT                "monospace:size=9"
 #define DEF_FOREGROUND          "#FFFFFF"
 #define DEF_SELFOREGROUND       "#FFFFFF"
