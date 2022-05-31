@@ -240,6 +240,17 @@ _CtrlOwnSelection(Widget w, XtConvertSelectionProc cvt, Atom sel, Time time)
 }
 
 void
+_CtrlGetSelection(Widget w, Atom sel, Atom target, XtSelectionCallbackProc proc, Time time)
+{
+	XtAppContext app;
+
+	app = XtWidgetToApplicationContext(w);
+	XtAppLock(app);
+	XtGetSelectionValue(w, sel, target, proc, NULL, time);
+	XtAppUnlock(app);
+}
+
+void
 _CtrlRegisterConverters(void)
 {
 	static Boolean registered = FALSE;
@@ -712,4 +723,16 @@ _CtrlInternAtom(Display *dpy, String name)
 	sel = XInternAtom(dpy, name, FALSE);
 	XtAppUnlock(app);
 	return sel;
+}
+
+XftFont *
+_CtrlGetFont(XtPointer font)
+{
+	return ((CtrlFont)font)->xftfont;
+}
+
+XftColor *
+_CtrlGetColor(XtPointer color)
+{
+	return &((CtrlColor)color)->xftcolor;
 }

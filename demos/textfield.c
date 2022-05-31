@@ -2,7 +2,7 @@
 #include <control.h>
 
 static String fallbackresources[] = {
-	"*CtrlTextField.value:          \"Hello World\"",
+	"*CtrlTextField.value:          Hello World",
 	NULL
 };
 

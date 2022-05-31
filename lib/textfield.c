@@ -22,18 +22,24 @@ static XtGeometryResult QueryGeometry(Widget, XtWidgetGeometry *, XtWidgetGeomet
 static void Draw(Widget);
 
 /* actions */
+static void SelectNothing(Widget, XEvent *, String *, Cardinal *);
 static void SelectAll(Widget, XEvent *, String *, Cardinal *);
 static void InsertChar(Widget, XEvent *, String *, Cardinal *);
 static void BeginningOfLine(Widget, XEvent *, String *, Cardinal *);
 static void EndOfLine(Widget, XEvent *, String *, Cardinal *);
 static void BackwardCharacter(Widget, XEvent *, String *, Cardinal *);
+static void BackwardWord(Widget, XEvent *, String *, Cardinal *);
+static void CopyClipboard(Widget, XEvent *, String *, Cardinal *);
 static void ForwardCharacter(Widget, XEvent *, String *, Cardinal *);
+static void ForwardWord(Widget, XEvent *, String *, Cardinal *);
 static void DeletePrevChar(Widget, XEvent *, String *, Cardinal *);
 static void DeleteNextChar(Widget, XEvent *, String *, Cardinal *);
 static void DeleteToBeginning(Widget, XEvent *, String *, Cardinal *);
 static void DeleteToEnd(Widget, XEvent *, String *, Cardinal *);
 static void DeleteWordBackwards(Widget, XEvent *, String *, Cardinal *);
 static void DeleteWordForwards(Widget, XEvent *, String *, Cardinal *);
+static void PasteClipboard(Widget, XEvent *, String *, Cardinal *);
+static void PastePrimary(Widget, XEvent *, String *, Cardinal *);
 
 /* preedit callback functions */
 static int PreeditStart(XIC, XPointer, XPointer);
@@ -50,8 +56,10 @@ static void SetCursor(Widget, Time, int, Boolean, Boolean);
 static void Redraw(Widget);
 static Boolean DeleteSelection(Widget);
 static Boolean Copy(Widget, Atom *, Atom *, Atom *, XtPointer *, unsigned long *, int *);
+static void Paste(Widget, XtPointer, Atom *, Atom *, XtPointer, unsigned long *, int *);
 
 char translations[] =
+"<Key>Escape:                   select-nothing()\n"
 "~s c <Key>A:                   select-all()\n"
 "~s ~c <Key>Home:               beginning-of-line()\n"
 "~s ~c <Key>KP_Home:            beginning-of-line()\n"
@@ -118,18 +126,24 @@ char translations[] =
 
 static XtActionsRec actions[] = {
 	/* text replacing bindings */
+	{"select-nothing",              SelectNothing},
 	{"select-all",                  SelectAll},
 	{"insert-char",                 InsertChar},
 	{"beginning-of-line",           BeginningOfLine},
 	{"end-of-line",                 EndOfLine},
 	{"backward-character",          BackwardCharacter},
+	{"backward-word",               BackwardWord},
+	{"copy-clipboard",              CopyClipboard},
 	{"forward-character",           ForwardCharacter},
+	{"forward-word",                ForwardWord},
 	{"delete-previous-character",   DeletePrevChar},
 	{"delete-next-character",       DeleteNextChar},
 	{"kill-to-beginning-of-line",   DeleteToBeginning},
 	{"kill-to-end-of-line",         DeleteToEnd},
 	{"backward-kill-word",          DeleteWordBackwards},
 	{"forward-kill-word",           DeleteWordForwards},
+	{"paste-clipboard",             PasteClipboard},
+	{"paste-primary",               PastePrimary},
 };
 
 static XtResource resources[] = {
@@ -201,7 +215,7 @@ static XtResource resources[] = {
 		.resource_class  = CtrlCIsTabGroup,
 		.resource_type   = CtrlRBoolean,
 		.resource_size   = sizeof(Boolean),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, primitive.is_tab_group),
+		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.is_tab_group),
 		.default_type    = CtrlRImmediate,
 		.default_addr    = (XtPointer)TRUE,
 	},
@@ -210,9 +224,9 @@ static XtResource resources[] = {
 		.resource_class  = CtrlCCursor,
 		.resource_type   = CtrlRCursor,
 		.resource_size   = sizeof(Cursor),
-		.resource_offset = XtOffsetOf(CtrlTextFieldRec, primitive.cursor),
+		.resource_offset = XtOffsetOf(CtrlPrimitiveRec, primitive.cursor),
 		.default_type    = CtrlRString,
-		.default_addr    = "pirate",
+		.default_addr    = "xterm",
 	},
 };
 
@@ -289,8 +303,8 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	newtf->text.caret_position = 0;
 	newtf->text.last_time = 0;
 	newtf->text.h_offset = 0;
-	newtf->text.timer_id = 0;
 	newtf->text.preedit_value = NULL;
+	newtf->text.clipboard_value = NULL;
 	newtf->text.preedit_size = 0;
 	newtf->text.preedit_length = 0;
 	newtf->text.text_length = strlen(origvalue);
@@ -328,6 +342,8 @@ Destroy(Widget w)
 
 	textw = (CtrlTextFieldWidget)w;
 	FREE(textw->text.value);
+	FREE(textw->text.preedit_value);
+	FREE(textw->text.clipboard_value);
 }
 
 static void
@@ -535,6 +551,19 @@ Draw(Widget w)
 }
 
 static void
+SelectNothing(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	textw->text.selection_position = textw->text.cursor_position;
+	Redraw(w);
+}
+
+static void
 SelectAll(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
@@ -602,6 +631,40 @@ BackwardCharacter(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 }
 
 static void
+BackwardWord(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)params;
+	textw = (CtrlTextFieldWidget)w;
+	SetCursor(w, ev->xkey.time, _CtrlMoveWordEdge(textw->text.value, textw->text.cursor_position, -1), *nparams > 0, TRUE);
+}
+
+static void
+CopyClipboard(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+	int minpos, maxpos;
+
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	FREE(textw->text.clipboard_value);
+	minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
+	maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
+	textw->text.clipboard_size = maxpos - minpos;
+	if (textw->text.clipboard_size <= 0)
+		return;
+	textw->text.clipboard_value = XtMalloc(textw->text.clipboard_size);
+	memcpy(
+		textw->text.clipboard_value,
+		textw->text.value + minpos,
+		textw->text.clipboard_size
+	);
+	_CtrlOwnSelection(w, Copy, _CtrlInternAtom(XtDisplay(w), CLIPBOARD), ev->xkey.time);
+}
+
+static void
 ForwardCharacter(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
@@ -609,6 +672,16 @@ ForwardCharacter(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	textw = (CtrlTextFieldWidget)w;
 	SetCursor(w, ev->xkey.time, _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1), *nparams > 0, TRUE);
+}
+
+static void
+ForwardWord(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)params;
+	textw = (CtrlTextFieldWidget)w;
+	SetCursor(w, ev->xkey.time, _CtrlMoveWordEdge(textw->text.value, textw->text.cursor_position, +1), *nparams > 0, TRUE);
 }
 
 static void
@@ -727,6 +800,34 @@ done:
 	ValueChanged(w, ev);
 }
 
+static void
+PasteClipboard(Widget w , XEvent *ev, String *params, Cardinal *nparams)
+{
+	(void)params;
+	(void)nparams;
+	_CtrlGetSelection(
+		w,
+		_CtrlInternAtom(XtDisplay(w), CLIPBOARD),
+		_CtrlInternAtom(XtDisplay(w), UTF8_STRING),
+		Paste,
+		ev->xkey.time
+	);
+}
+
+static void
+PastePrimary(Widget w , XEvent *ev, String *params, Cardinal *nparams)
+{
+	(void)params;
+	(void)nparams;
+	_CtrlGetSelection(
+		w,
+		XA_PRIMARY,
+		_CtrlInternAtom(XtDisplay(w), UTF8_STRING),
+		Paste,
+		ev->xkey.time
+	);
+}
+
 static int
 PreeditStart(XIC xic, XPointer client_data, XPointer call_data)
 {
@@ -753,6 +854,7 @@ PreeditDone(XIC xic, XPointer client_data, XPointer call_data)
 	textw = (CtrlTextFieldWidget)client_data;
 	textw->text.under_preedit = FALSE;
 	FREE(textw->text.preedit_value);
+	textw->text.preedit_value = NULL;
 	textw->text.preedit_size = 0;
 	textw->text.preedit_length = 0;
 	return 0;
@@ -763,21 +865,19 @@ PreeditDraw(XIC xic, XPointer client_data, XPointer call_data)
 {
 	XIMPreeditDrawCallbackStruct *pdraw;
 	CtrlTextFieldWidget textw;
-	XtAppContext app;
 	Widget w;
 	int beg, dellen, inslen, endlen;
 
 	(void)xic;
 	w = (Widget)client_data;
 	textw = (CtrlTextFieldWidget)w;
-	app = XtWidgetToApplicationContext(w);
 	pdraw = (XIMPreeditDrawCallbackStruct *)call_data;
 	if (pdraw == NULL)
 		return 0;
 
 	/* we do not support wide characters */
 	if (pdraw->text && pdraw->text->encoding_is_wchar == True) {
-		WARN(app, "unsupportedEncoding", "Control only supports utf8");
+		WARN(XtWidgetToApplicationContext(w), "unsupportedEncoding", "Control only supports utf8");
 		return 0;
 	}
 
@@ -967,15 +1067,20 @@ static Boolean
 DeleteSelection(Widget w)
 {
 	CtrlTextFieldWidget textw;
-	int minpos, maxpos;
+	int minpos, maxpos, len;
 
 	textw = (CtrlTextFieldWidget)w;
 	if (textw->text.selection_position == textw->text.cursor_position)
 		return FALSE;
 	minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
 	maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
-	memmove(textw->text.value + minpos, textw->text.value + maxpos, textw->text.text_length - maxpos + 1);
-	textw->text.cursor_position = textw->text.selection_position = minpos;
+	len = maxpos - minpos;
+	if (len <= 0)
+		return FALSE;
+	textw->text.cursor_position = maxpos;
+	textw->text.selection_position = minpos;
+	Insert(textw, NULL, 0 - len);
+	textw->text.cursor_position = minpos;
 	return TRUE;
 }
 
@@ -984,6 +1089,7 @@ Copy(Widget w, Atom *sel, Atom *target, Atom *type, XtPointer *val, unsigned lon
 {
 	CtrlTextFieldWidget textw;
 	int minpos, maxpos;
+	char *p;
 
 	/*
 	 * We allocate memory into the *val argument.
@@ -991,7 +1097,6 @@ Copy(Widget w, Atom *sel, Atom *target, Atom *type, XtPointer *val, unsigned lon
 	 * when the selection conversion is done (because _CtrlOwnSelection
 	 * in util.c does not inform a XtSelectionDoneProc process).
 	 */
-	(void)sel;
 	if (*target == _CtrlInternAtom(XtDisplay(w), TARGETS)) {
 		/*
 		 * We have been asked for supported target formats.
@@ -1010,13 +1115,21 @@ Copy(Widget w, Atom *sel, Atom *target, Atom *type, XtPointer *val, unsigned lon
 		 * But we'll send a UTF8 string in either case.
 		 */
 		textw = (CtrlTextFieldWidget)w;
-		minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
-		maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
-		*type = *target;
-		*len = maxpos - minpos + 1;
 		*fmt = UTF8_SIZE;
-		*val = (XtPointer)strndup(textw->text.value + minpos, *len);
-		((char *)*val)[*len - 1] = '\0';
+		*type = *target;
+		if (*sel == XA_PRIMARY) {
+			minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
+			maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
+			*len = maxpos - minpos;
+			p = textw->text.value + minpos;
+		} else if (*sel == _CtrlInternAtom(XtDisplay(w), CLIPBOARD)) {
+			*len = textw->text.clipboard_size;
+			p = textw->text.clipboard_value;
+		} else {
+			return FALSE;
+		}
+		*val = XtMalloc(*len);
+		memcpy(*val, p, *len);
 		return TRUE;
 	}
 	/*
@@ -1024,4 +1137,27 @@ Copy(Widget w, Atom *sel, Atom *target, Atom *type, XtPointer *val, unsigned lon
 	 * asked to convert our selection to a format we do not know).
 	 */
 	return FALSE;
+}
+
+static void
+Paste(Widget w, XtPointer client_data, Atom *sel, Atom *type, XtPointer val, unsigned long *len, int *fmt)
+{
+	unsigned long i, l;
+	String s;
+
+	(void)client_data;
+	(void)sel;
+	(void)fmt;
+	if (*type == XT_CONVERT_FAIL || val == NULL || *len == 0)
+		return;
+	l = *len;
+	s = (String)val;
+	for (i = l; i > 0; i--) {
+		if (s[i - 1] != '\0')
+			break;
+	}
+	if (i == 0)
+		return;
+	Insert((CtrlTextFieldWidget)w, s, i);
+	Redraw(w);
 }

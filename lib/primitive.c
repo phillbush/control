@@ -11,6 +11,7 @@ static void Realize(Widget, XtValueMask *, XSetWindowAttributes *);
 static void Destroy(Widget);
 static void Redisplay(Widget, XEvent *, Region);
 static Boolean SetValues(Widget, Widget, Widget, ArgList, Cardinal *);
+static void GetValues(Widget, ArgList, Cardinal *);
 
 /* primitive methods */
 static void Highlight(Widget);
@@ -197,7 +198,7 @@ CtrlPrimitiveClassRec ctrlPrimitiveClassRec = {
 		.expose                 = Redisplay,
 		.set_values             = SetValues,
 		.set_values_almost      = XtInheritSetValuesAlmost,
-		.get_values_hook        = NULL,
+		.get_values_hook        = GetValues,
 		.accept_focus           = NULL,
 		.version                = XtVersion,
 		.callback_private       = NULL,
@@ -338,7 +339,7 @@ Realize(Widget w, XtValueMask *valuemask, XSetWindowAttributes *attrs)
 	attrs->do_not_propagate_mask = ButtonPressMask | ButtonReleaseMask | KeyPressMask | KeyReleaseMask | PointerMotionMask;
 	if ((attrs->cursor = primitivew->primitive.cursor) != None)
 		*valuemask |= CWCursor;
-	(*ctrlPrimitiveWidgetClass->core_class.superclass->core_class.realize)(w, valuemask, attrs);
+	(*coreWidgetClass->core_class.realize)(w, valuemask, attrs);
 	(*(((CtrlPrimitiveWidgetClass)(XtClass(w)))->core_class.resize))(w);
 }
 
@@ -419,6 +420,31 @@ SetValues(Widget cw, Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 		return TRUE;
 	} else {
 		return FALSE;
+	}
+}
+
+static void
+GetValues(Widget w, ArgList args, Cardinal *nargs)
+{
+	XrmQuark quark, fontq, foreq;
+	Cardinal i;
+
+	/*
+	 * We save XftFont/XftColor in a CtrlFont/CtrlColor structure
+	 * (which actually just save them along with a (Display *)
+	 * object).  We need to get them from those structures.
+	 */
+	(void)w;
+	fontq = XrmStringToQuark(CtrlNfaceName);
+	foreq = XrmStringToQuark(CtrlNforeground);
+	for (i = 0; i < *nargs; i++) {
+		quark = XrmStringToQuark(args[i].name);
+		if (quark == fontq) {
+			args[i].value = (XtArgVal)_CtrlGetFont((XtPointer)args[i].value);
+		}
+		if (quark == foreq) {
+			args[i].value = (XtArgVal)_CtrlGetColor((XtPointer)args[i].value);
+		}
 	}
 }
 

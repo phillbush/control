@@ -36,6 +36,7 @@
 
 /* routines from util.c */
 void _CtrlOwnSelection(Widget, XtConvertSelectionProc, Atom, Time);
+void _CtrlGetSelection(Widget, Atom, Atom, XtSelectionCallbackProc, Time);
 void _CtrlRegisterConverters(void);
 void _CtrlNewPixmap(Display *, Pixmap *, Window, Dimension, Dimension, Cardinal);
 void _CtrlDrawRectangle(Display *, Pixmap, Pixmap, Pixel, int, int, Dimension, Dimension);
@@ -55,3 +56,5 @@ int _CtrlRuneBytes(String, int);
 int _CtrlRuneChars(String, int);
 int _CtrlMoveWordEdge(String, int, int);
 Atom _CtrlInternAtom(Display *, String);
+XftFont *_CtrlGetFont(XtPointer);
+XftColor *_CtrlGetColor(XtPointer);

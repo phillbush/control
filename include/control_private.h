@@ -82,25 +82,24 @@ typedef struct {
 	XtPointer               selforeground;
 	Pixel                   selbackground;
 	String                  value;
-	String                  preedit_value;
-	Time                    last_time;              /* time of last selection event */
-	int                     text_size;              /* size of allocated value string */
-	int                     text_length;            /* used size of value string */
-	int                     preedit_size;
-	int                     preedit_length;
 	int                     columns;                /* number of character columns in the text input field */
-	int                     h_offset;
-	int                     cursor_position;        /* position of the insertion cursor and one selection extremity */
-	int                     selection_position;     /* position of the other selection extremity */
-	int                     caret_position;
 	Dimension               select_threshold;
-	Boolean                 has_focus;
-	Boolean                 selection_move;
-	Boolean                 overstrike;
-	Boolean                 under_preedit;
-	XtIntervalId            timer_id;
 
 	/* internal */
+	String                  preedit_value;
+	String                  clipboard_value;        /* contents of last Ctrl-C */
+	Time                    last_time;              /* time of last selection event */
+	Boolean                 overstrike;
+	Boolean                 under_preedit;
+	int                     h_offset;
+	int                     text_size;              /* size of allocated value string */
+	int                     text_length;            /* used size of value string */
+	int                     caret_position;
+	int                     selection_position;     /* position of the other selection extremity */
+	int                     cursor_position;        /* position of the insertion cursor and one selection extremity */
+	int                     preedit_size;
+	int                     preedit_length;
+	int                     clipboard_size;
 	XIC                     xic;
 } CtrlTextFieldPart;
 
