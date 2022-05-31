@@ -86,11 +86,16 @@ typedef struct {
 	Dimension               select_threshold;
 
 	/* internal */
+	XtPointer               undo_list;              /* list of editions */
+	XtPointer               undo_current;           /* current position in the undo list */
 	String                  preedit_value;
 	String                  clipboard_value;        /* contents of last Ctrl-C */
+	String                  primary_value;
 	Time                    last_time;              /* time of last selection event */
+	Boolean                 last_modify;            /* last modification operation */
 	Boolean                 overstrike;
 	Boolean                 under_preedit;
+	Boolean                 select_word;            /* whether the user have done the first click to select a word */
 	int                     h_offset;
 	int                     text_size;              /* size of allocated value string */
 	int                     text_length;            /* used size of value string */
@@ -100,6 +105,7 @@ typedef struct {
 	int                     preedit_size;
 	int                     preedit_length;
 	int                     clipboard_size;
+	int                     primary_size;
 	XIC                     xic;
 } CtrlTextFieldPart;
 

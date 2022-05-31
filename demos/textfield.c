@@ -3,6 +3,7 @@
 
 static String fallbackresources[] = {
 	"*CtrlTextField.value:          Hello World",
+	"*CtrlTextField.columns:        50",
 	NULL
 };
 

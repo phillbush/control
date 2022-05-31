@@ -1,4 +1,7 @@
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
 
 #include <control_private.h>
 
@@ -50,6 +53,35 @@ NullProc(Widget w, XtPointer p, XEvent *ev, Boolean *b)
 	 * mask required by the input method to be added to the client
 	 * window.
 	 */
+}
+
+static Boolean
+CvtStringToCardinal(Display *dpy, XrmValue *args, Cardinal *nargs, XrmValue *from, XrmValue *to, XtPointer *data)
+{
+	XtAppContext app;
+	String str, ep;
+	Cardinal val;
+
+	(void)args;
+	(void)nargs;
+	(void)data;
+	app = XtDisplayToApplicationContext(dpy);
+	XtAppLock(app);
+	if (from->addr == NULL)
+		goto error;
+	str = (String)from->addr;
+	errno = 0;
+	val = strtoul(str, &ep, 10);
+	if (str[0] == '\0' || *ep != '\0' || errno == ERANGE) {
+		WARN(app, "unknownValue", "value is not a number");
+		goto error;
+	}
+	XtAppUnlock(app);
+	CONVERTER_DONE(to, Cardinal, val)
+	return TRUE;
+error:
+	XtAppUnlock(app);
+	return FALSE;
 }
 
 static Boolean
@@ -266,14 +298,21 @@ _CtrlRegisterConverters(void)
 			CtrlRXftColor,
 			CvtStringToColor,
 			XtCacheByDisplay | XtCacheRefCount,
-			CvtColorDestroy
+			CvtColorDestroy,
 		},
 		{
 			CtrlRString,
 			CtrlRXftFont,
 			CvtStringToFont,
 			XtCacheByDisplay | XtCacheRefCount,
-			CvtFontDestroy
+			CvtFontDestroy,
+		},
+		{
+			CtrlRString,
+			CtrlRCardinal,
+			CvtStringToCardinal,
+			XtCacheNone,
+			NULL,
 		},
 	};
 	Cardinal i;

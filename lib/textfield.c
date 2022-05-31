@@ -10,6 +10,28 @@
 #define THICKNESS(w)     (2 * HALFTHICKNESS(w))
 #define INPUTSIZE        1024
 
+enum {
+	MODIFY_NONE,
+	MODIFY_INSERTION,
+	MODIFY_DELETION,
+};
+
+struct Undo {
+	struct Undo *prev, *next;
+	String text;
+	int length;
+};
+
+/*
+ * The last entry of the undo_list is a dummy entry with .text set to
+ * NULL, we use it to know whether we are at the end of the undo list.
+ */
+struct Undo dummy_undo = {
+	.text = NULL,
+	.prev = NULL,
+	.next = NULL,
+};
+
 /* core methods */
 static void Initialize(Widget, Widget, ArgList, Cardinal *);
 static void Realize(Widget, XtValueMask *, XSetWindowAttributes *);
@@ -40,6 +62,11 @@ static void DeleteWordBackwards(Widget, XEvent *, String *, Cardinal *);
 static void DeleteWordForwards(Widget, XEvent *, String *, Cardinal *);
 static void PasteClipboard(Widget, XEvent *, String *, Cardinal *);
 static void PastePrimary(Widget, XEvent *, String *, Cardinal *);
+static void Redo(Widget, XEvent *, String *, Cardinal *);
+static void SelectStart(Widget, XEvent *, String *, Cardinal *);
+static void SelectAdjust(Widget, XEvent *, String *, Cardinal *);
+static void SelectEnd(Widget, XEvent *, String *, Cardinal *);
+static void Undo(Widget, XEvent *, String *, Cardinal *);
 
 /* preedit callback functions */
 static int PreeditStart(XIC, XPointer, XPointer);
@@ -49,6 +76,7 @@ static int PreeditCaret(XIC, XPointer, XPointer);
 static int PreeditDestroy(XIC, XPointer, XPointer);
 
 /* helper internal functions */
+static void InitiateSelection(Widget, Time, Atom, String *, int *);
 static void ValueChanged(Widget, XEvent *);
 static void AdjustText(Widget);
 static void Insert(CtrlTextFieldWidget, String, int);
@@ -57,6 +85,8 @@ static void Redraw(Widget);
 static Boolean DeleteSelection(Widget);
 static Boolean Copy(Widget, Atom *, Atom *, Atom *, XtPointer *, unsigned long *, int *);
 static void Paste(Widget, XtPointer, Atom *, Atom *, XtPointer, unsigned long *, int *);
+static int GetCursorPosition(Widget, int);
+static void AddUndo(Widget, Boolean);
 
 char translations[] =
 "<Key>Escape:                   select-nothing()\n"
@@ -108,12 +138,11 @@ char translations[] =
 "<Key>Return:                   activate()\n"
 "<Key>KP_Enter:                 activate()\n"
 "<Btn1Down>:                    select-start()\n"
-"<Btn1Motion>:                  extend-adjust()\n"
-"<Btn1Up>:                      extend-end()\n"
+"<Btn1Motion>:                  select-adjust()\n"
+"<Btn1Up>:                      select-end()\n"
+"<Btn3Up>:                      select-end()\n"
 "<Btn2Down>:                    paste-primary()\n"
-"<Btn3Down>:                    extend-start()\n"
-"<Btn3Up>:                      extend-start()\n"
-"<Btn3Up>:                      extend-end()\n"
+"<Btn3Down>:                    extend()\n"
 //"<Unmap>:                       unmap()\n"
 //"<Enter>:                       enter-window()\n"
 //"<Leave>:                       leave-window()\n"
@@ -126,24 +155,29 @@ char translations[] =
 
 static XtActionsRec actions[] = {
 	/* text replacing bindings */
-	{"select-nothing",              SelectNothing},
-	{"select-all",                  SelectAll},
-	{"insert-char",                 InsertChar},
-	{"beginning-of-line",           BeginningOfLine},
-	{"end-of-line",                 EndOfLine},
 	{"backward-character",          BackwardCharacter},
+	{"backward-kill-word",          DeleteWordBackwards},
 	{"backward-word",               BackwardWord},
+	{"beginning-of-line",           BeginningOfLine},
 	{"copy-clipboard",              CopyClipboard},
-	{"forward-character",           ForwardCharacter},
-	{"forward-word",                ForwardWord},
-	{"delete-previous-character",   DeletePrevChar},
 	{"delete-next-character",       DeleteNextChar},
+	{"delete-previous-character",   DeletePrevChar},
+	{"end-of-line",                 EndOfLine},
+	{"forward-character",           ForwardCharacter},
+	{"forward-kill-word",           DeleteWordForwards},
+	{"forward-word",                ForwardWord},
+	{"insert-char",                 InsertChar},
 	{"kill-to-beginning-of-line",   DeleteToBeginning},
 	{"kill-to-end-of-line",         DeleteToEnd},
-	{"backward-kill-word",          DeleteWordBackwards},
-	{"forward-kill-word",           DeleteWordForwards},
 	{"paste-clipboard",             PasteClipboard},
 	{"paste-primary",               PastePrimary},
+	{"redo",                        Redo},
+	{"select-all",                  SelectAll},
+	{"select-nothing",              SelectNothing},
+	{"select-start",                SelectStart},
+	{"select-adjust",               SelectAdjust},
+	{"select-end",                  SelectEnd},
+	{"undo",                        Undo},
 };
 
 static XtResource resources[] = {
@@ -298,13 +332,18 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	newtf->primitive.focusable = TRUE;
 	newtf->primitive.pressed = TRUE;
 	newtf->primitive.is3d = TRUE;
+	newtf->text.last_modify = MODIFY_NONE;
 	newtf->text.overstrike = FALSE;
+	newtf->text.select_word = FALSE;
 	newtf->text.under_preedit = FALSE;
 	newtf->text.caret_position = 0;
 	newtf->text.last_time = 0;
 	newtf->text.h_offset = 0;
 	newtf->text.preedit_value = NULL;
 	newtf->text.clipboard_value = NULL;
+	newtf->text.clipboard_size = 0;
+	newtf->text.primary_value = NULL;
+	newtf->text.primary_size = 0;
 	newtf->text.preedit_size = 0;
 	newtf->text.preedit_length = 0;
 	newtf->text.text_length = strlen(origvalue);
@@ -316,6 +355,8 @@ Initialize(Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	if (reqtf->core.height == 0)
 		newtf->core.height = THICKNESS(nw) + 2 * newtf->primitive.margin_height + newtf->primitive.font_height;
 	snprintf(newtf->text.value, newtf->text.text_size, "%s", origvalue);
+	newtf->text.undo_list = (XtPointer)&dummy_undo;
+	newtf->text.undo_current = NULL;
 }
 
 static void 
@@ -344,6 +385,7 @@ Destroy(Widget w)
 	FREE(textw->text.value);
 	FREE(textw->text.preedit_value);
 	FREE(textw->text.clipboard_value);
+	FREE(textw->text.primary_value);
 }
 
 static void
@@ -442,7 +484,7 @@ Draw(Widget w)
 	textw = (CtrlTextFieldWidget)w;
 	minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
 	maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
-	x = HALFTHICKNESS(w) + textw->primitive.margin_width + textw->text.h_offset;
+	x = textw->text.h_offset;
 	y = HALFTHICKNESS(w) + textw->primitive.margin_width;
 	widthpre = 0;
 
@@ -540,7 +582,7 @@ Draw(Widget w)
 			XtDisplay(w),
 			textw->primitive.pixsave,
 			textw->text.selforeground,
-			HALFTHICKNESS(w) + textw->primitive.margin_width + textw->text.h_offset + widthpre + width,
+			textw->text.h_offset + widthpre + width,
 			y, 1,
 			textw->primitive.font_height
 		);
@@ -586,6 +628,10 @@ InsertChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.last_modify != MODIFY_INSERTION) {
+		AddUndo(w, TRUE);
+		textw->text.last_modify = MODIFY_INSERTION;
+	}
 	status = _CtrlLookupString(XtDisplay(w), textw->text.xic, ev, buf, sizeof(buf) - 1, &len);
 	if (status != XLookupChars && status != XLookupBoth) {
 		/*
@@ -644,24 +690,17 @@ static void
 CopyClipboard(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	CtrlTextFieldWidget textw;
-	int minpos, maxpos;
 
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
-	FREE(textw->text.clipboard_value);
-	minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
-	maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
-	textw->text.clipboard_size = maxpos - minpos;
-	if (textw->text.clipboard_size <= 0)
-		return;
-	textw->text.clipboard_value = XtMalloc(textw->text.clipboard_size);
-	memcpy(
-		textw->text.clipboard_value,
-		textw->text.value + minpos,
-		textw->text.clipboard_size
+	InitiateSelection(
+		w,
+		ev->xkey.time,
+		_CtrlInternAtom(XtDisplay(w), CLIPBOARD),
+		&textw->text.clipboard_value,
+		&textw->text.clipboard_size
 	);
-	_CtrlOwnSelection(w, Copy, _CtrlInternAtom(XtDisplay(w), CLIPBOARD), ev->xkey.time);
 }
 
 static void
@@ -692,6 +731,10 @@ DeletePrevChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.last_modify != MODIFY_DELETION) {
+		AddUndo(w, TRUE);
+		textw->text.last_modify = MODIFY_DELETION;
+	}
 	if (DeleteSelection(w))
 		goto done;
 	if (textw->text.cursor_position > 0)
@@ -709,6 +752,10 @@ DeleteNextChar(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.last_modify != MODIFY_DELETION) {
+		AddUndo(w, TRUE);
+		textw->text.last_modify = MODIFY_DELETION;
+	}
 	if (DeleteSelection(w))
 		goto done;
 	if (textw->text.value[textw->text.cursor_position] != '\0')
@@ -728,6 +775,10 @@ DeleteToBeginning(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.last_modify != MODIFY_DELETION) {
+		AddUndo(w, TRUE);
+		textw->text.last_modify = MODIFY_DELETION;
+	}
 	if (DeleteSelection(w))
 		goto done;
 	Insert(textw, NULL, 0 - textw->text.cursor_position);
@@ -744,6 +795,10 @@ DeleteToEnd(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.last_modify != MODIFY_DELETION) {
+		AddUndo(w, TRUE);
+		textw->text.last_modify = MODIFY_DELETION;
+	}
 	if (DeleteSelection(w))
 		goto done;
 	textw->text.value[textw->text.cursor_position] = '\0';
@@ -761,6 +816,10 @@ DeleteWordBackwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.last_modify != MODIFY_DELETION) {
+		AddUndo(w, TRUE);
+		textw->text.last_modify = MODIFY_DELETION;
+	}
 	if (DeleteSelection(w))
 		goto done;
 	while (textw->text.cursor_position > 0 && isspace((unsigned char)textw->text.value[(pos = _CtrlNextRune(textw->text.value, textw->text.cursor_position, -1))]))
@@ -781,6 +840,10 @@ DeleteWordForwards(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 	(void)params;
 	(void)nparams;
 	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.last_modify != MODIFY_DELETION) {
+		AddUndo(w, TRUE);
+		textw->text.last_modify = MODIFY_DELETION;
+	}
 	if (DeleteSelection(w))
 		goto done;
 	while (textw->text.value[textw->text.cursor_position] != '\0' && !isspace((unsigned char)textw->text.value[(pos = _CtrlNextRune(textw->text.value, textw->text.cursor_position, +1))])) {
@@ -801,7 +864,7 @@ done:
 }
 
 static void
-PasteClipboard(Widget w , XEvent *ev, String *params, Cardinal *nparams)
+PasteClipboard(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	(void)params;
 	(void)nparams;
@@ -815,7 +878,7 @@ PasteClipboard(Widget w , XEvent *ev, String *params, Cardinal *nparams)
 }
 
 static void
-PastePrimary(Widget w , XEvent *ev, String *params, Cardinal *nparams)
+PastePrimary(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
 	(void)params;
 	(void)nparams;
@@ -826,6 +889,145 @@ PastePrimary(Widget w , XEvent *ev, String *params, Cardinal *nparams)
 		Paste,
 		ev->xkey.time
 	);
+}
+
+static void
+Redo(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+	struct Undo *curr;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	//if (textw->text.last_modify != MODIFY_NONE) {
+	//	AddUndo(w, FALSE);
+	//	textw->text.last_modify = MODIFY_NONE;
+	//}
+	curr = (struct Undo *)textw->text.undo_current;
+	if (curr != NULL && curr->prev != NULL)
+		textw->text.undo_current = (XtPointer)curr->prev;
+	curr = (struct Undo *)textw->text.undo_current;
+	if (curr != NULL) {
+		memcpy(textw->text.value, curr->text, curr->length);
+		textw->text.text_length = curr->length;
+		textw->text.value[curr->length] = '\0';
+		textw->text.cursor_position = textw->text.text_length;
+		textw->text.selection_position = textw->text.cursor_position;
+		Redraw(w);
+	}
+}
+
+static void
+SelectStart(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+	int pos;
+
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.under_preedit)  /* we ignore mouse events when compositing */
+		return;
+	if (ev->xbutton.time > textw->text.last_time &&
+	    ev->xbutton.time - textw->text.last_time < (unsigned long)XtGetMultiClickTime(XtDisplay(w))) {
+		if (textw->text.select_word) {
+			textw->text.selection_position = 0;
+			SetCursor(w, ev->xkey.time, textw->text.text_length, TRUE, TRUE);
+			textw->text.select_word = FALSE;
+		} else {
+			pos = textw->text.cursor_position;
+			SetCursor(
+				w,
+				ev->xkey.time,
+				_CtrlMoveWordEdge(textw->text.value, pos, -1),
+				FALSE,
+				FALSE
+			);
+			SetCursor(
+				w,
+				ev->xkey.time,
+				_CtrlMoveWordEdge(textw->text.value, pos, +1),
+				TRUE,
+				TRUE
+			);
+			textw->text.select_word = TRUE;
+		}
+	} else {
+		SetCursor(
+			w,
+			ev->xbutton.time,
+			GetCursorPosition(w, ev->xbutton.x),
+			FALSE,
+			TRUE
+		);
+		textw->text.select_word = FALSE;
+	}
+	textw->text.last_time = ev->xbutton.time;
+}
+
+static void
+SelectAdjust(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+	int prevcursor;
+
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	prevcursor = textw->text.cursor_position;
+	if (textw->text.under_preedit)          /* we ignore mouse events when compositing */
+		return;
+	textw->text.cursor_position = GetCursorPosition(w, ev->xmotion.x);
+	if (textw->text.cursor_position == prevcursor)       /* no change, do not redraw */
+		return;
+	Redraw(w);
+}
+
+static void
+SelectEnd(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	if (textw->text.cursor_position != textw->text.selection_position) {
+		InitiateSelection(w, ev->xbutton.time, XA_PRIMARY, &textw->text.primary_value, &textw->text.primary_size);
+	}
+}
+
+static void
+Undo(Widget w, XEvent *ev, String *params, Cardinal *nparams)
+{
+	CtrlTextFieldWidget textw;
+	struct Undo *curr;
+
+	(void)ev;
+	(void)params;
+	(void)nparams;
+	textw = (CtrlTextFieldWidget)w;
+	//if (textw->text.last_modify != MODIFY_NONE) {
+	//	AddUndo(w, FALSE);
+	//	textw->text.last_modify = MODIFY_NONE;
+	//}
+	curr = (struct Undo *)textw->text.undo_current;
+	if (curr != NULL) {
+		if (curr->text == NULL) {
+			return;
+		}
+		textw->text.undo_current = (XtPointer)curr->next;
+	}
+	curr = (struct Undo *)textw->text.undo_current;
+	if (curr != NULL) {
+		memcpy(textw->text.value, curr->text, curr->length);
+		textw->text.text_length = curr->length;
+		textw->text.value[curr->length] = '\0';
+		textw->text.cursor_position = textw->text.text_length;
+		textw->text.selection_position = textw->text.cursor_position;
+		Redraw(w);
+	}
 }
 
 static int
@@ -968,6 +1170,24 @@ PreeditDestroy(XIC xic, XPointer client_data, XPointer call_data)
 }
 
 static void
+InitiateSelection(Widget w, Time time, Atom atom, String *str, int *siz)
+{
+	CtrlTextFieldWidget textw;
+	int minpos, maxpos;
+
+	textw = (CtrlTextFieldWidget)w;
+	FREE(*str);
+	minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
+	maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
+	*siz = maxpos - minpos;
+	if (*siz <= 0)
+		return;
+	*str = XtMalloc(*siz);
+	memcpy(*str, textw->text.value + minpos, *siz);
+	_CtrlOwnSelection(w, Copy, atom, time);
+}
+
+static void
 ValueChanged(Widget w, XEvent *ev)
 {
 	CtrlGenericCallData cd;
@@ -1035,7 +1255,9 @@ SetCursor(Widget w, Time time, int pos, Boolean select, Boolean redraw)
 		return;
 	textw->text.cursor_position = pos;
 	if (select) {
-		_CtrlOwnSelection(w, Copy, XA_PRIMARY, time);
+		if (textw->text.cursor_position != textw->text.selection_position) {
+			InitiateSelection(w, time, XA_PRIMARY, &textw->text.primary_value, &textw->text.primary_size);
+		}
 	} else {
 		textw->text.selection_position = textw->text.cursor_position;
 	}
@@ -1088,7 +1310,6 @@ static Boolean
 Copy(Widget w, Atom *sel, Atom *target, Atom *type, XtPointer *val, unsigned long *len, int *fmt)
 {
 	CtrlTextFieldWidget textw;
-	int minpos, maxpos;
 	char *p;
 
 	/*
@@ -1118,10 +1339,8 @@ Copy(Widget w, Atom *sel, Atom *target, Atom *type, XtPointer *val, unsigned lon
 		*fmt = UTF8_SIZE;
 		*type = *target;
 		if (*sel == XA_PRIMARY) {
-			minpos = MIN(textw->text.cursor_position, textw->text.selection_position);
-			maxpos = MAX(textw->text.cursor_position, textw->text.selection_position);
-			*len = maxpos - minpos;
-			p = textw->text.value + minpos;
+			*len = textw->text.primary_size;
+			p = textw->text.primary_value;
 		} else if (*sel == _CtrlInternAtom(XtDisplay(w), CLIPBOARD)) {
 			*len = textw->text.clipboard_size;
 			p = textw->text.clipboard_value;
@@ -1158,6 +1377,78 @@ Paste(Widget w, XtPointer client_data, Atom *sel, Atom *type, XtPointer val, uns
 	}
 	if (i == 0)
 		return;
+	AddUndo(w, TRUE);
 	Insert((CtrlTextFieldWidget)w, s, i);
 	Redraw(w);
+}
+
+static int
+GetCursorPosition(Widget w, int xpos)
+{
+	CtrlTextFieldWidget textw;
+	int x, i, j, textwidth;
+
+	textw = (CtrlTextFieldWidget)w;
+	xpos -= textw->primitive.font_average_width / 2;
+	x = textw->text.h_offset;
+	for (i = j = 0; textw->text.value[i] != '\0'; i = _CtrlNextRune(textw->text.value, i, +1)) {
+		if (xpos < x)
+			break;
+		textwidth = _CtrlGetTextWidth(textw->primitive.font, textw->text.value, i);
+		x = textw->text.h_offset + textwidth;
+		j = i;
+	}
+	if (textw->text.value[i] == '\0')
+		return i;
+	return j;
+}
+
+static void
+AddUndo(Widget w, Boolean editing)
+{
+	CtrlTextFieldWidget textw;
+	struct Undo *list, *curr, *undo, *tmp;
+
+	textw = (CtrlTextFieldWidget)w;
+
+	/*
+	 * When adding a new entry to the undo list, delete the entries
+	 * after the new one.
+	 */
+	list = (struct Undo *)textw->text.undo_list;
+	curr = (struct Undo *)textw->text.undo_current;
+	if (curr != NULL && curr->prev != NULL) {
+		undo = curr->prev;
+		while (undo) {
+			tmp = undo;
+			undo = undo->prev;
+			free(tmp->text);
+			free(tmp);
+		}
+		curr->prev = NULL;
+		textw->text.undo_list = (XtPointer)curr;
+	}
+
+	/*
+	 * Add a new entry only if it differs from the one at the top of
+	 * the list.
+	 */
+	list = (struct Undo *)textw->text.undo_list;
+	if (list->text == NULL || strcmp(list->text, textw->text.value) != 0) {
+		undo = (struct Undo *)XtMalloc(sizeof(*undo));
+		undo->text = XtMalloc(textw->text.text_length + 1);
+		undo->length = textw->text.text_length;
+		memcpy(undo->text, textw->text.value, undo->length);
+		undo->text[undo->length] = '\0';
+		undo->next = list;
+		undo->prev = NULL;
+		if (list != NULL)
+			list->prev = undo;
+		textw->text.undo_list = (XtPointer)undo;
+
+		/* If we are editing text, the current entry is the top one.  */
+		if (editing) {
+			textw->text.undo_current = (XtPointer)undo;
+		}
+	}
 }

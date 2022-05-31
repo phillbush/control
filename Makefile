@@ -46,8 +46,14 @@ lib/libcontrol.so: ${OBJS_LIB}
 .c.o:
 	${CC} ${XCFLAGS} ${CFLAGS} ${CPPFLAGS} -o $@ -c $<
 
-clean:
-	rm -f ${LIBS} ${DEMOS} ${OBJS} tags
+cleancore:
+	rm -f *.core
+
+cleantags:
+	rm -f tags
+
+clean: cleancore cleantags
+	rm -f ${LIBS} ${DEMOS} ${OBJS}
 
 gitadd:
 	git add Makefile README doc/control.3 ${SRCS}
@@ -57,4 +63,4 @@ gitpush:
 	# git remote add origin git@github.com:phillbush/control.git
 	git push -u origin master
 
-.PHONY: all lib demos tags clean gitadd gitpush
+.PHONY: all lib demos tags cleancore cleantags clean gitadd gitpush
