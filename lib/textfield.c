@@ -1251,13 +1251,15 @@ AdjustText(Widget w)
 
 	/* update textw->text.h_offset for character at position to be visible */
 	textw = (CtrlTextFieldWidget)w;
-	margin = textw->primitive.margin_width + textw->primitive.shadow_thickness + textw->primitive.highlight_thickness;
-	left = textw->text.h_offset + textw->primitive.font_average_width;
+	margin = textw->primitive.margin_width + HALFTHICKNESS(textw);
+	left = textw->text.h_offset;
 	left += _CtrlGetTextWidth(textw->primitive.font, textw->text.value, textw->text.cursor_position);
 	left += _CtrlGetTextWidth(textw->primitive.font, textw->text.preedit_value, textw->text.caret_position);
-	if ((diff = left - margin) < 0) {                               /* scroll text to the right */
+	if ((diff = left - margin) < 0) {
+		/* scroll text to the right */
 		textw->text.h_offset -= diff;
-	} else if ((diff = left - textw->core.width + margin) > 0) {    /* scroll text to the left */
+	} else if ((diff = left - textw->core.width + margin) > 0) {
+		/* scroll text to the left */
 		textw->text.h_offset -= diff;
 	}
 }
