@@ -109,10 +109,12 @@ does not provide any library function.
 .Sh CLASSES
 This section describes the widget classes provided by
 .Nm .
-This section also describes the classes provided by the Xt framework
-(see the section
-.Sx Xt Classes
-below).
+This section also describes the classes provided by the Xt framework;
+they are those whose Object pointer and Resource class
+do not begin with
+.Ql ctrl
+and
+.Ql Ctrl Ns .
 .Pp
 For each widget class there is an object exported by the
 .Nm
@@ -137,6 +139,46 @@ and
 and
 .Ql CtrlTextField
 are the resource classes for these widget classes
+.Ss Core
+.Bl -column "XXXXXXXXXXXXXXX"
+.It Object pointer: Ta coreWidgetClass
+.It Resource class: Ta Core
+.El
+.Pp
+The Core widget class is the fundamental superclass provided by the Xt framework.
+.Pp
+The Core widget class provides the following resources
+(they actually begin with
+.Ql XtN
+prefix rather than the
+.Ql CtrlN
+prefix, but for consistency with the resources provided by
+.Nm ,
+they are also available with the
+.Ql CtrlN
+prefix).
+.Bl -bullet -compact
+.It
+CtrlNaccelerators
+.It
+CtrlNbackground
+.It
+CtrlNbackgroundPixmap
+.It
+CtrlNborderColor
+.It
+CtrlNborderPixmap
+.It
+CtrlNcolormap
+.It
+CtrlNdepth
+.It
+CtrlNmappedWhenManaged
+.It
+CtrlNscreen
+.It
+CtrlNtranslations
+.El
 .Ss Primitive
 .Bl -column "XXXXXXXXXXXXXXX"
 .It Object pointer: Ta ctrlPrimitiveWidgetClass

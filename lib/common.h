@@ -38,6 +38,7 @@ void _CtrlOwnSelection(Widget, XtConvertSelectionProc, Atom, Time);
 void _CtrlGetSelection(Widget, Atom, Atom, XtSelectionCallbackProc, Time);
 void _CtrlRegisterConverters(void);
 void _CtrlNewPixmap(Display *, Pixmap *, Window, Dimension, Dimension, Cardinal);
+void _CtrlDelPixmap(Display *, Pixmap *);
 void _CtrlDrawRectangle(Display *, Pixmap, Pixmap, Pixel, int, int, Dimension, Dimension);
 void _CtrlDrawXftRectangle(Display *, Pixmap, XtPointer, int, int, Dimension, Dimension);
 void _CtrlDrawHighlight(Display *, Pixmap, Pixmap, Pixel, int, int, Dimension, Dimension, Dimension);

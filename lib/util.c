@@ -408,6 +408,19 @@ _CtrlNewPixmap(Display *dpy, Pixmap *pix, Window win, Dimension w, Dimension h, 
 }
 
 void
+_CtrlDelPixmap(Display *dpy, Pixmap *pix)
+{
+	XtAppContext app;
+
+	if (*pix == None)
+		return;
+	app = XtDisplayToApplicationContext(dpy);
+	XtAppLock(app);
+	XFreePixmap(dpy, *pix);
+	XtAppUnlock(app);
+}
+
+void
 _CtrlDrawRectangle(Display *dpy, Pixmap pix, Pixmap tile, Pixel color, int x, int y, Dimension w, Dimension h)
 {
 	XGCValues gcvalues;
