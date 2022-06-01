@@ -1436,14 +1436,14 @@ GetCursorPosition(Widget w, int xpos)
 	textw = (CtrlTextFieldWidget)w;
 	xpos -= textw->primitive.font_average_width / 2;
 	x = textw->text.h_offset;
-	for (i = j = 0; textw->text.value[i] != '\0'; i = _CtrlNextRune(textw->text.value, i, +1)) {
+	for (i = j = 0; i < textw->text.text_length; i = _CtrlNextRune(textw->text.value, i, +1)) {
 		if (xpos < x)
 			break;
 		textwidth = _CtrlGetTextWidth(textw->primitive.font, textw->text.value, i);
 		x = textw->text.h_offset + textwidth;
 		j = i;
 	}
-	if (textw->text.value[i] == '\0')
+	if (xpos >= x)
 		return i;
 	return j;
 }
