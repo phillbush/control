@@ -349,8 +349,8 @@ Destroy(Widget w)
 	CtrlPrimitiveWidget primitivew;
 
 #warning TODO: Delete widget traversal information
-	_CtrlDelPixmap(XtDisplay(w), &primitivew->primitive.pixsave);
 	primitivew = (CtrlPrimitiveWidget)w;
+	_CtrlDelPixmap(XtDisplay(w), &primitivew->primitive.pixsave);
 	if (primitivew->primitive.tooltip != NULL) {
 		XtFree(primitivew->primitive.tooltip);
 	}
