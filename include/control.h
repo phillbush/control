@@ -114,18 +114,7 @@
 #define CtrlNhighlightPixmap            "highlightPixmap"
 #define CtrlNisTabGroup                 "isTabGroup"
 #define CtrlNtraverseable               "traverseable"
-#define CtrlNpreeditStartCallback       "preeditStartCallback"
-#define CtrlNpreeditDoneCallback        "preeditDoneCallback"
-#define CtrlNpreeditDrawCallback        "preeditDrawCallback"
-#define CtrlNpreeditCaretCallback       "preeditCaretCallback"
 #define CtrlNactivateCallback           "activateCallback"
-#define CtrlNdestinationCallback        "destinationCallback"
-#define CtrlNfocusCallback              "focusCallback"
-#define CtrlNlosingFocusCallback        "losingFocusCallback"
-#define CtrlNgainPrimaryCallback        "gainPrimaryCallback"
-#define CtrlNlosePrimaryCallback        "losePrimaryCallback"
-#define CtrlNgainClipboardCallback      "gainClipboardCallback"
-#define CtrlNloseClipboardCallback      "loseClipboardCallback"
 #define CtrlNvalueChangedCallback       "valueChangedCallback"
 #define CtrlNmarginHeight               "marginHeight"
 #define CtrlNmarginWidth                "marginWidth"
@@ -135,6 +124,9 @@
 #define CtrlNcolumns                    "columns"
 #define CtrlNselforeground              "selforeground"
 #define CtrlNselbackground              "selbackground"
+#define CtrlNfocusFollowPointer         "focusFollowPointer"
+#define CtrlNcloseCallback              "closeCallback"
+#define CtrlNhorizontalShell            "horizontalShell"
 
 /* resource class definitions */
 #define CtrlCAccelerators               XtCAccelerators
@@ -224,6 +216,8 @@
 #define CtrlCSelforeground              "Selforeground"
 #define CtrlCSelbackground              "Selbackground"
 #define CtrlCFaceName                   "FaceName"
+#define CtrlCFocusFollowPointer         "FocusFollowPointer"
+#define CtrlCHorizontalShell            "HorizontalShell"
 
 /* resource representation type definitions */
 #define CtrlRAcceleratorTable           XtRAcceleratorTable
@@ -303,6 +297,7 @@ enum {
 	CTRL_NONE,
 	CTRL_VALUE_CHANGED,
 	CTRL_ACTIVATE,
+	CTRL_CLOSE,
 };
 
 /* Callback Structures */
@@ -312,14 +307,17 @@ typedef struct {
 } CtrlGenericCallData;
 
 /* widget class types */
+typedef struct _CtrlShellClassRec      *CtrlShellWidgetClass;
 typedef struct _CtrlPrimitiveClassRec  *CtrlPrimitiveWidgetClass;
 typedef struct _CtrlTextFieldClassRec  *CtrlTextFieldWidgetClass;
 
 /* widget types */
+typedef struct _CtrlShellRec           *CtrlShellWidget;
 typedef struct _CtrlPrimitiveRec       *CtrlPrimitiveWidget;
 typedef struct _CtrlTextFieldRec       *CtrlTextFieldWidget;
 
 /* widget classes */
+extern WidgetClass ctrlShellWidgetClass;
 extern WidgetClass ctrlPrimitiveWidgetClass;
 extern WidgetClass ctrlTextFieldWidgetClass;
 

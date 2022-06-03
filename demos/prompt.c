@@ -36,7 +36,7 @@ main(int argc, char *argv[])
 		NULL, 0,
 		&argc, argv,
 		fallbackresources,
-		sessionShellWidgetClass,
+		ctrlShellWidgetClass,
 		NULL, 0
 	);
 	(void)XtVaCreateManagedWidget(

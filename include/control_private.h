@@ -4,6 +4,7 @@
 #include <control.h>
 #include <X11/IntrinsicP.h>
 #include <X11/CoreP.h>
+#include <X11/ShellP.h>
 
 /* class part structures */
 
@@ -22,6 +23,10 @@ typedef struct {
 	int foo;                                        /* dummy field */
 } CtrlTextFieldClassPart;
 
+typedef struct {
+	int foo;                                        /* dummy field */
+} CtrlShellClassPart;
+
 /* class structures */
 
 typedef struct _CtrlPrimitiveClassRec {
@@ -34,6 +39,18 @@ typedef struct _CtrlTextFieldClassRec {
 	CtrlPrimitiveClassPart  primitive_class;
 	CtrlTextFieldClassPart  text_class;
 } CtrlTextFieldClassRec;
+
+typedef struct _CtrlShellClassRec {
+	CoreClassPart           core_class;
+	CompositeClassPart      composite_class;
+	ShellClassPart          shell_class;
+	WMShellClassPart        wm_shell_class;
+	VendorShellClassPart    vendor_shell_class;
+	TopLevelShellClassPart top_level_shell_class;
+	ApplicationShellClassPart application_shell_class;
+	SessionShellClassPart   session_shell_class;
+	CtrlShellClassPart      ctrl_shell_class;
+} CtrlShellClassRec;
 
 /* widget part structures */
 
@@ -108,6 +125,16 @@ typedef struct {
 	XIC                     xic;
 } CtrlTextFieldPart;
 
+typedef struct {
+	/* resources */
+	XtCallbackList          close_callback;
+	Boolean                 follow_focus;
+
+	/* internal */
+	XIM                     xim;
+	XIMStyle                pref_style;
+} CtrlShellPart;
+
 /* widget structures */
 
 typedef struct _CtrlPrimitiveRec {
@@ -121,7 +148,20 @@ typedef struct _CtrlTextFieldRec {
 	CtrlTextFieldPart       text;
 } CtrlTextFieldRec;
 
+typedef struct _CtrlShellRec {
+	CorePart                core;
+	CompositePart           composite;
+	ShellPart               shell;
+	WMShellPart             wm;
+	VendorShellPart         vendor;
+	TopLevelShellPart       topLevel;
+	ApplicationShellPart    application;
+	SessionShellPart        session;
+	CtrlShellPart           ctrl;
+} CtrlShellRec;
+
 /* external objects */
+extern CtrlShellClassRec        ctrlShellClassRec;
 extern CtrlPrimitiveClassRec    ctrlPrimitiveClassRec;
 extern CtrlTextFieldClassRec    ctrlTextFieldClassRec;
 

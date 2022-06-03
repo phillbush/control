@@ -12,6 +12,7 @@
 #define CLIPBOARD               "CLIPBOARD"
 #define TARGETS                 "TARGETS"
 #define WM_DELETE_WINDOW        "WM_DELETE_WINDOW"
+#define WM_PROTOCOLS            "WM_PROTOCOLS"
 
 /* util macros */
 #define MAX(x,y) ((x)>(y)?(x):(y))
@@ -32,6 +33,9 @@
 #define DEF_SHADOW_LIGHT_COLOR  "#737373"
 #define DEF_SHADOW_DARK_COLOR   "#101010"
 #define DEF_HIGHLIGHT_COLOR     "#C5C8C6"
+
+/* we don't do borders */
+#define BORDER_WIDTH            0
 
 /* routines from util.c */
 void _CtrlOwnSelection(Widget, XtConvertSelectionProc, Atom, Time);

@@ -15,6 +15,7 @@ LIBS = lib/libcontrol.a lib/libcontrol.so
 
 OBJS_LIB = \
 	lib/util.o \
+	lib/shell.o \
 	lib/primitive.o \
 	lib/textfield.o
 
@@ -53,7 +54,7 @@ cleancore:
 cleantags:
 	rm -f tags
 
-clean: cleancore cleantags
+clean: cleancore
 	rm -f ${LIBS} ${DEMOS} ${OBJS}
 
 gitadd:

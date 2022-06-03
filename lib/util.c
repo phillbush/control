@@ -32,16 +32,6 @@ typedef struct CtrlColorRec {
 	XftColor        xftcolor;
 } CtrlColorRec, *CtrlColor;
 
-struct CtrlInputMethodRec {
-	XContext        context;
-	XIM             xim;
-	XIMStyles      *styles;
-	XIMStyle        pref_style;
-};
-
-static XContext ximcontext = 0;
-static XContext xiccontext = 0;
-
 static void
 NullProc(Widget w, XtPointer p, XEvent *ev, Boolean *b)
 {
@@ -53,6 +43,13 @@ NullProc(Widget w, XtPointer p, XEvent *ev, Boolean *b)
 	 * mask required by the input method to be added to the client
 	 * window.
 	 */
+}
+
+static Widget GetShell(Widget w)
+{
+	while (w != NULL && !XtIsShell(w))
+		w = XtParent(w);
+	return w;
 }
 
 static Boolean
@@ -222,45 +219,6 @@ CvtColorDestroy(XtAppContext app, XrmValue *to, XtPointer data, XrmValue *args, 
 		&color->xftcolor
 	);
 	FREE(color);
-}
-
-static struct CtrlInputMethodRec *
-CtrlGetInputMethod(Display *dpy)
-{
-	struct CtrlInputMethodRec *im;
-	XtAppContext app;
-	XIMStyle preeditstyle;
-	XIMStyle statusstyle;
-	unsigned int i;
-
-	/* get input method for display (create one if non existant) */
-	preeditstyle = XIMPreeditNothing;
-	statusstyle = XIMStatusNothing;                 /* we do not do status area (should we?) */
-	app = XtDisplayToApplicationContext(dpy);
-	XtAppLock(app);
-	if (ximcontext == 0)
-		ximcontext = XUniqueContext();
-	if (XFindContext(dpy, None, ximcontext, (XPointer *)&im) == 0)
-		goto done;
-	im = (struct CtrlInputMethodRec *)XtMalloc(sizeof(*im));
-	if ((im->xim = XOpenIM(dpy, NULL, NULL, NULL)) == NULL)
-		goto error;
-	if (XGetIMValues(im->xim, XNQueryInputStyle, &im->styles, NULL) != NULL)
-		goto error;
-	for (i = 0; i < im->styles->count_styles; i++) {
-		if (im->styles->supported_styles[i] & XIMPreeditCallbacks) {
-			preeditstyle = XIMPreeditCallbacks;
-			break;
-		}
-	}
-	im->pref_style = preeditstyle | statusstyle;
-done:
-	XtAppUnlock(app);
-	return im;
-error:
-	XtAppUnlock(app);
-	ERROR(app, "noInputMethod", "could not open input method");
-	return NULL;
 }
 
 static void
@@ -639,7 +597,7 @@ _CtrlGetTextWidth(XtPointer font, String text, Cardinal len)
 XIC
 _CtrlGetInputContext(Widget w, XICProc startp, XICProc donep, XICProc drawp, XICProc caretp, XICProc destroyp)
 {
-	struct CtrlInputMethodRec *im;
+	CtrlShellWidget shell;
 	Display *dpy;
 	XtAppContext app;
 	XVaNestedList preedit;
@@ -648,16 +606,13 @@ _CtrlGetInputContext(Widget w, XICProc startp, XICProc donep, XICProc drawp, XIC
 	XtValueMask mask;
 
 	/* get input context for window (create one if non existant) */
+	xic = NULL;
 	dpy = XtDisplay(w);
 	preedit = NULL;
 	app = XtDisplayToApplicationContext(dpy);
 	win = XtWindow(w);
-	im = CtrlGetInputMethod(dpy);
 	XtAppLock(app);
-	if (xiccontext == 0)
-		xiccontext = XUniqueContext();
-	if (XFindContext(dpy, win, xiccontext, (XPointer *)&xic) == 0)
-		goto done;
+	shell = (CtrlShellWidget)GetShell(w);
 	preedit = XVaCreateNestedList(
 		0,
 		XNPreeditStartCallback, &(XICCallback){
@@ -681,8 +636,8 @@ _CtrlGetInputContext(Widget w, XICProc startp, XICProc donep, XICProc drawp, XIC
 	if (preedit == NULL)
 		goto error;
 	xic = XCreateIC(
-		im->xim,
-		XNInputStyle,           im->pref_style,
+		shell->ctrl.xim,
+		XNInputStyle,           shell->ctrl.pref_style,
 		XNPreeditAttributes,    preedit,
 		XNDestroyCallback,      &(XICCallback){
 			.client_data    = (XPointer)w,
@@ -698,11 +653,12 @@ _CtrlGetInputContext(Widget w, XICProc startp, XICProc donep, XICProc drawp, XIC
 		goto error;
 	if (mask)
 		XtAddEventHandler(w, mask, False, NullProc, NULL);
-done:
 	XFree(preedit);
 	XtAppUnlock(app);
 	return xic;
 error:
+	if (xic != NULL)
+		XDestroyIC(xic);
 	XFree(preedit);
 	XtAppUnlock(app);
 	ERROR(app, "noInputContext", "could not create input context");
