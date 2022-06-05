@@ -612,7 +612,7 @@ Activate(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 		.event = ev,
 	};
 	XtCallCallbackList(w, textw->text.activate_callback, (XtPointer)&cd);
-#warning TODO: if the parent is a manager, pass the event to the parent
+	// TODO: if the parent is a manager, pass the event to the parent
 }
 
 static void

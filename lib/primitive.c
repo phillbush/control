@@ -24,7 +24,7 @@ static void Activate(Widget, XEvent *, String *, Cardinal *);
 static void Draw(Widget);
 
 static XtActionsRec actions[] = {
-#warning TODO: Fill in Primitive actions[] after implement widget traversal;
+	// TODO: Fill in Primitive actions[] after implement widget traversal;
 };
 
 static XtResource resources[] = {
@@ -348,7 +348,7 @@ Destroy(Widget w)
 {
 	CtrlPrimitiveWidget primitivew;
 
-#warning TODO: Delete widget traversal information
+	// TODO: Delete widget traversal information
 	primitivew = (CtrlPrimitiveWidget)w;
 	_CtrlDelPixmap(XtDisplay(w), &primitivew->primitive.pixsave);
 	if (primitivew->primitive.tooltip != NULL) {
@@ -407,8 +407,8 @@ SetValues(Widget cw, Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 			XUndefineCursor(XtDisplay(nw), XtWindow(nw));
 		}
 	}
-#warning TODO: update font
-#warning TODO: update keyboard traversals
+	// TODO: update font
+	// TODO: update keyboard traversals
 	if (old->primitive.shadow_thickness != new->primitive.shadow_thickness ||
 	    old->primitive.shadow_light_pixel != new->primitive.shadow_light_pixel ||
 	    old->primitive.shadow_light_pixmap != new->primitive.shadow_light_pixmap ||
@@ -417,7 +417,7 @@ SetValues(Widget cw, Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	    old->primitive.highlight_thickness != new->primitive.highlight_thickness ||
 	    old->primitive.highlight_pixel != new->primitive.highlight_pixel ||
 	    old->primitive.highlight_pixmap != new->primitive.highlight_pixmap) {
-#warning TODO: redraw widget without damage drawings that subclasses may have done
+	// TODO: redraw widget without damage drawings that subclasses may have done
 		return TRUE;
 	} else {
 		return FALSE;
@@ -634,21 +634,21 @@ Unpress(Widget w)
 static void
 TooltipPost(Widget w)
 {
-#warning TODO: implement primitive_class.tooltip_post
+	// TODO: implement primitive_class.tooltip_post
 	(void)w;
 }
 
 static void
 TooltipUnpost(Widget w)
 {
-#warning TODO: implement primitive_class.tooltip_unpost
+	// TODO: implement primitive_class.tooltip_unpost
 	(void)w;
 }
 
 static void
 Activate(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 {
-#warning TODO: implement primitive_class.activate
+	// TODO: implement primitive_class.activate
 	(void)w;
 	(void)ev;
 	(void)params;

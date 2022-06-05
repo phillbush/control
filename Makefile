@@ -32,6 +32,9 @@ demos: ${DEMOS}
 ${OBJS_LIB}: ${INCS}
 ${OBJS_DEMO}: ${OBJS_LIB}
 
+todo: ${SRCS}
+	grep -n 'TODO' ${SRCS}
+
 tags: ${SRCS}
 	ctags ${SRCS}
 
@@ -65,4 +68,4 @@ gitpush:
 	# git remote add origin git@github.com:phillbush/control.git
 	git push -u origin master
 
-.PHONY: all lib demos tags cleancore cleantags clean gitadd gitpush
+.PHONY: all todo lib demos tags cleancore cleantags clean gitadd gitpush

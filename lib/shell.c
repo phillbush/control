@@ -298,7 +298,7 @@ SetValues(Widget cw, Widget rw, Widget nw, ArgList args, Cardinal *nargs)
 	if (newsw->core.being_destroyed)
 		goto done;
 	if (newsw->ctrl.follow_focus != oldsw->ctrl.follow_focus) {
-#warning TODO: handle focus policy change
+	// TODO: handle focus policy change
 	}
 done:
 	return FALSE;
@@ -327,7 +327,7 @@ ChangeManaged(Widget w)
 			break;
 		}
 	}
-#warning TODO: see how motif does with XmeNavigChangeManaged
+	// TODO: see how motif does with XmeNavigChangeManaged
 }
 
 static XtGeometryResult
@@ -346,7 +346,7 @@ Focus(Widget w, XtPointer clientdata, XEvent *ev, Boolean *dontSwallow)
 	(void)clientdata;
 	(void)ev;
 	(void)dontSwallow;
-#warning TODO: Implement Focus
+	// TODO: Implement Focus
 }
 
 static void
@@ -384,7 +384,7 @@ PopupCallback(Widget w, XtPointer closure, XtPointer calldata)
 	(void)w;
 	(void)closure;
 	(void)calldata;
-#warning TODO: implement PopupCallback
+	// TODO: implement PopupCallback
 }
 
 static void
@@ -393,5 +393,5 @@ PopdownCallback(Widget w, XtPointer closure, XtPointer calldata)
 	(void)w;
 	(void)closure;
 	(void)calldata;
-#warning TODO: implement PopdownCallback
+	// TODO: implement PopdownCallback
 }
